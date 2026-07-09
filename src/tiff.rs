@@ -1,4 +1,5 @@
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
+use core::num;
 use memmap2::Mmap;
 use std::fs::File;
 use std::path::Path;
@@ -113,7 +114,30 @@ fn parse_header(data: &[u8]) -> Result<TiffHeader, TiffError> {
     })
 }
 fn read_ifd(data: &[u8], endian: Endian, offset: u32) -> Result<Ifd, TiffError> {
-    todo!()
+    let mut current_offset = offset as usize;
+    let num_entries = endian.read_u16(data, current_offset)? as usize;
+    current_offset += 2;
+
+    let mut entries = Vec::new();
+    for _ in 0..num_entries {
+        let tag = endian.read_u16(data, current_offset)?;
+        let field_type = endian.read_u16(data, current_offset + 2)?;
+        let count = endian.read_u32(data, current_offset + 4)?;
+        let value_or_offset = endian.read_u32(data, current_offset + 8)?;
+
+        entries.push(IfdEntry {
+            tag,
+            field_type,
+            count,
+            value_or_offset,
+        });
+
+        current_offset += 12;
+    }
+    Ok(Ifd {
+        entries,
+        next_offset: endian.read_u32(data, current_offset)?,
+    })
 }
 fn thumbnail_tags(ifd: &Ifd) -> Option<ThumbnailLocation> {
     // find 0x0201 + 0x0202
