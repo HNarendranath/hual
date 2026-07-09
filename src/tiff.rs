@@ -233,3 +233,7 @@ pub fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, TiffError> {
         })?;
     Ok(data[start..end].to_vec())
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/tiff.rs"]
+mod tests;
