@@ -16,10 +16,26 @@ pub enum TiffError {
 enum Endian { Little, Big }
 impl Endian {
     fn read_u16(self, data: &[u8], offset: usize) -> Result<u16, TiffError> {
-        todo!()
+        let bytes = data.get(offset..offset + 2).ok_or(TiffError::Truncated {
+            offset,
+            needed: 2,
+            len: data.len(),
+        })?;
+        Ok(match self {
+            Endian::Little => LittleEndian::read_u16(bytes),
+            Endian::Big => BigEndian::read_u16(bytes),
+        })
     }
     fn read_u32(self, data: &[u8], offset: usize) -> Result<u32, TiffError> {
-        todo!()
+        let bytes = data.get(offset..offset + 4).ok_or(TiffError::Truncated {
+            offset,
+            needed: 4,
+            len: data.len(),
+        })?;
+        Ok(match self {
+            Endian::Little => LittleEndian::read_u32(bytes),
+            Endian::Big => BigEndian::read_u32(bytes),
+        })
     }
 }
 
