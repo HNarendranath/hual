@@ -31,7 +31,13 @@ impl IfdEntry {
     }
 }
 fn type_size(field_type: u16) -> u32 {
-    todo!()
+    match field_type {
+        1 | 2 | 6 | 7 => 1,   // BYTE, ASCII, SBYTE, UNDEFINED
+        3 | 8 => 2,           // SHORT, SSHORT
+        4 | 9 | 11 | 13 => 4, // LONG, SLONG, FLOAT, IFD
+        5 | 10 | 12 => 8,     // RATIONAL, SRATIONAL, DOUBLE
+        _ => 0,               // return 0 for unkown types, so we can skip them
+    }
 }               
 
 struct Ifd { entries: Vec<IfdEntry>, next_offset: u32 } // IFD = Image File Directory
