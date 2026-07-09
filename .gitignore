@@ -1,4 +1,4 @@
 /target
-.arw
-.nef
-.cr3
+*.arw
+*.nef
+*.cr3
