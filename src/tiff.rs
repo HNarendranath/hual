@@ -49,6 +49,13 @@ impl Endian {
     }
 }
 
+// NB this made me WAY too happy lol
+impl From<std::io::Error> for TiffError {
+    fn from(e: std::io::Error) -> Self {
+        TiffError::Io(e)
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 struct IfdEntry {
     tag: u16,
@@ -141,11 +148,30 @@ fn read_ifd(data: &[u8], endian: Endian, offset: u32) -> Result<Ifd, TiffError> 
 }
 fn thumbnail_tags(ifd: &Ifd) -> Option<ThumbnailLocation> {
     // find 0x0201 + 0x0202
-    todo!()
+    let offset_entry = ifd.entries.iter().find(|e| e.tag == 0x0201)?;
+    let length_entry = ifd.entries.iter().find(|e| e.tag == 0x0202)?;
+
+    Some(ThumbnailLocation {
+        offset: offset_entry.value_or_offset,
+        length: length_entry.value_or_offset,
+    })
 }
 fn subifd_offsets(data: &[u8], endian: Endian, ifd: &Ifd) -> Result<Vec<u32>, TiffError> {
     // tag 0x014A
-    todo!()
+    let Some(entry) = ifd.entries.iter().find(|e| e.tag == 0x014A) else {
+        return Ok(Vec::new());
+    };
+
+    if entry.count == 1 {
+        return Ok(vec![entry.value_or_offset]);
+    }
+
+    let mut offsets = Vec::with_capacity(entry.count as usize);
+    for i in 0..entry.count {
+        let offset = entry.value_or_offset as usize + (i as usize) * 4;
+        offsets.push(endian.read_u32(data, offset)?);
+    }
+    Ok(offsets)
 }
 
 const MAX_IFD_CHAIN: u32 = 16; // guard against corrupt/circular next-offset chains
@@ -155,14 +181,55 @@ fn find_thumbnail(
     endian: Endian,
     ifd0_offset: u32,
 ) -> Result<ThumbnailLocation, TiffError> {
+    let ifd0 = read_ifd(data, endian, ifd0_offset)?;
+
     // 1. walk IFD0's sibling chain (IFD1 = spec's thumbnail IFD) — PRIMARY path
+    let mut next = ifd0.next_offset;
+    let mut depth = 0;
+
+    while next != 0 && depth < MAX_IFD_CHAIN {
+        let ifd = read_ifd(data, endian, next)?;
+        if let Some(loc) = thumbnail_tags(&ifd) {
+            return Ok(loc);
+        }
+        next = ifd.next_offset;
+        depth += 1;
+    }
+
     // 2. fall back to IFD0's own 0x0201/0x0202 tags
+    if let Some(loc) = thumbnail_tags(&ifd0) {
+        return Ok(loc);
+    }
+
     // 3. fall back to SubIFDs referenced from IFD0 (tag 0x014A)
-    todo!()
+    for sub_offset in subifd_offsets(data, endian, &ifd0)? {
+        let sub_ifd = read_ifd(data, endian, sub_offset)?;
+        if let Some(loc) = thumbnail_tags(&sub_ifd) {
+            return Ok(loc);
+        }
+    }
+
+    Err(TiffError::ThumbnailNotFound)
 }
 
 pub fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, TiffError> {
     // File::open, unsafe { Mmap::map }, parse_header, find_thumbnail,
     // bounds-checked slice, .to_vec()
-    todo!()
+    let file = File::open(path)?;
+    let mmap = unsafe { Mmap::map(&file)? };
+    let data: &[u8] = &mmap;
+
+    let header = parse_header(data)?;
+    let location = find_thumbnail(data, header.endian, header.ifd0_offset)?;
+
+    let start = location.offset as usize;
+    let end = start
+        .checked_add(location.length as usize)
+        .filter(|&e| e <= data.len())
+        .ok_or(TiffError::Truncated {
+            offset: start,
+            needed: location.length as usize,
+            len: data.len(),
+        })?;
+    Ok(data[start..end].to_vec())
 }
