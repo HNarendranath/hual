@@ -1,5 +1,4 @@
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
-use core::num;
 use memmap2::Mmap;
 use std::fs::File;
 use std::path::Path;
