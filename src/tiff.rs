@@ -216,7 +216,20 @@ fn find_thumbnail(
 ) -> Result<ThumbnailLocation, TiffError> {
     let ifd0 = read_ifd(data, endian, ifd0_offset)?;
 
-    // 1. walk IFD0's sibling chain (IFD1 = spec's thumbnail IFD) — PRIMARY path
+    // 1. fall back to SubIFDs referenced from IFD0 (tag 0x014A)
+    for sub_offset in subifd_offsets(data, endian, &ifd0)? {
+        let sub_ifd = read_ifd(data, endian, sub_offset)?;
+        if let Some(loc) = thumbnail_tags(&sub_ifd) {
+            return Ok(loc);
+        }
+    }
+
+    // 2. fall back to IFD0's own 0x0201/0x0202 tags
+    if let Some(loc) = thumbnail_tags(&ifd0) {
+        return Ok(loc);
+    }
+
+    // 3. walk IFD0's sibling chain (IFD1 = spec's thumbnail IFD) — PRIMARY path
     let mut next = ifd0.next_offset;
     let mut depth = 0;
 
@@ -227,19 +240,6 @@ fn find_thumbnail(
         }
         next = ifd.next_offset;
         depth += 1;
-    }
-
-    // 2. fall back to IFD0's own 0x0201/0x0202 tags
-    if let Some(loc) = thumbnail_tags(&ifd0) {
-        return Ok(loc);
-    }
-
-    // 3. fall back to SubIFDs referenced from IFD0 (tag 0x014A)
-    for sub_offset in subifd_offsets(data, endian, &ifd0)? {
-        let sub_ifd = read_ifd(data, endian, sub_offset)?;
-        if let Some(loc) = thumbnail_tags(&sub_ifd) {
-            return Ok(loc);
-        }
     }
 
     Err(TiffError::ThumbnailNotFound)
