@@ -1,16 +1,38 @@
-mod tiff;
 mod cr3;
 mod thumbnail;
+mod tiff;
 
-use memmap2::Mmap;
-use std::fs::File;
+use std::env;
+use std::path::PathBuf;
+use std::process::ExitCode;
 
-fn main() -> std::io::Result<()> {
-    let file = File::open("test.arw")?;
-    let mmap = unsafe { Mmap::map(&file)? };
+fn main() -> ExitCode {
+    let mut args = env::args_os().skip(1);
 
-    println!("File is {} bytes", mmap.len());
-    println!("First 8 bytes: {:?}", &mmap[0..8]);
+    let Some(input) = args.next() else {
+        eprintln!("Usage: hual <input.tiff>");
+        return ExitCode::FAILURE;
+    };
 
-    Ok(())
+    let input = PathBuf::from(input);
+    let output = args
+        .next()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| input.with_extension("jpg"));
+
+    let bytes = match tiff::extract_thumbnail(&input) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            eprintln!("Error extracting thumbnail from {}: {e}", input.display());
+            return ExitCode::FAILURE;
+        }
+    };
+
+    if let Err(e) = std::fs::write(&output, &bytes) {
+        eprintln!("Error writing {}: {e}", output.display());
+        return ExitCode::FAILURE;
+    }
+
+    println!("Wrote {} bytes to {}", bytes.len(), output.display());
+    ExitCode::SUCCESS
 }
