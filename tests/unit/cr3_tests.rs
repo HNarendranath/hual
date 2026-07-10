@@ -222,21 +222,24 @@ fn find_jpeg_soi_empty_payload_returns_none() {
 // ---- find_thumbnail / extract_thumbnail ----
 
 fn build_valid_cr3(jpeg: &[u8]) -> Vec<u8> {
-    let mut canon_payload = Vec::new();
-    canon_payload.extend_from_slice(b"leading-metadata-noise");
-    canon_payload.extend_from_slice(jpeg);
+    let mut prvw_payload = vec![0u8; PRVW_JPEG_SIZE_FIELD_OFFSET]; // unknown:u32, unknown:u16, width:u16, height:u16, unknown:u16
+    prvw_payload.extend_from_slice(&(jpeg.len() as u32).to_be_bytes()); // jpeg_size
+    prvw_payload.extend_from_slice(jpeg);
 
-    let mut moov_payload = Vec::new();
-    write_uuid_box(&mut moov_payload, &CANON_PREVIEW_UUID, &canon_payload);
+    let mut prvw_box = Vec::new();
+    write_box(&mut prvw_box, b"PRVW", &prvw_payload);
+
+    let mut uuid_payload = vec![0u8; PRVW_UUID_PAYLOAD_SKIP]; // undocumented gap before PRVW's siblings start
+    uuid_payload.extend_from_slice(&prvw_box);
 
     let mut data = Vec::new();
     write_ftyp(&mut data, b"crx ");
-    write_box(&mut data, b"moov", &moov_payload);
+    write_uuid_box(&mut data, &CANON_PREVIEW_UUID, &uuid_payload); // top-level, sibling of ftyp
     data
 }
 
 #[test]
-fn find_thumbnail_locates_jpeg_inside_canon_uuid_box() {
+fn find_thumbnail_locates_jpeg_inside_prvw_box() {
     let jpeg = b"\xFF\xD8fake-jpeg-bytes\xFF\xD9";
     let data = build_valid_cr3(jpeg);
 
@@ -264,24 +267,9 @@ fn find_thumbnail_rejects_wrong_major_brand() {
 }
 
 #[test]
-fn find_thumbnail_missing_moov_box() {
+fn find_thumbnail_missing_preview_uuid_box() {
     let mut data = Vec::new();
-    write_ftyp(&mut data, b"crx "); // no "moov" box at all follows
-
-    assert!(matches!(
-        find_thumbnail(&data),
-        Err(Cr3Error::MissingBox { fourcc, .. }) if fourcc == *b"moov"
-    ));
-}
-
-#[test]
-fn find_thumbnail_missing_canon_uuid_box() {
-    let mut moov_payload = Vec::new();
-    write_box(&mut moov_payload, b"trak", b"unrelated-track-data"); // moov present, but no uuid child at all
-
-    let mut data = Vec::new();
-    write_ftyp(&mut data, b"crx ");
-    write_box(&mut data, b"moov", &moov_payload);
+    write_ftyp(&mut data, b"crx "); // no top-level "uuid" box at all follows
 
     assert!(matches!(
         find_thumbnail(&data),
@@ -290,14 +278,10 @@ fn find_thumbnail_missing_canon_uuid_box() {
 }
 
 #[test]
-fn find_thumbnail_uuid_box_with_wrong_usertype_is_missing() {
-    let wrong_usertype = [0xEE; 16]; // a "uuid" box exists, but it isn't Canon's specific one
-    let mut moov_payload = Vec::new();
-    write_uuid_box(&mut moov_payload, &wrong_usertype, b"irrelevant");
-
+fn find_thumbnail_unrelated_top_level_boxes_dont_satisfy_uuid_lookup() {
     let mut data = Vec::new();
     write_ftyp(&mut data, b"crx ");
-    write_box(&mut data, b"moov", &moov_payload);
+    write_box(&mut data, b"moov", b"unrelated-moov-data"); // present, but irrelevant to the new design
 
     assert!(matches!(
         find_thumbnail(&data),
@@ -306,15 +290,49 @@ fn find_thumbnail_uuid_box_with_wrong_usertype_is_missing() {
 }
 
 #[test]
-fn find_thumbnail_canon_uuid_present_without_jpeg_is_not_found() {
-    let mut moov_payload = Vec::new();
-    write_uuid_box(&mut moov_payload, &CANON_PREVIEW_UUID, b"metadata-with-no-jpeg-marker");
+fn find_thumbnail_top_level_uuid_with_wrong_usertype_is_missing() {
+    let wrong_usertype = [0xEE; 16]; // a top-level "uuid" box exists, but it isn't Canon's specific one
+    let mut data = Vec::new();
+    write_ftyp(&mut data, b"crx ");
+    write_uuid_box(&mut data, &wrong_usertype, b"irrelevant");
+
+    assert!(matches!(
+        find_thumbnail(&data),
+        Err(Cr3Error::MissingBox { fourcc, .. }) if fourcc == *b"uuid"
+    ));
+}
+
+#[test]
+fn find_thumbnail_preview_uuid_present_without_prvw_box() {
+    let uuid_payload = vec![0u8; PRVW_UUID_PAYLOAD_SKIP]; // skip bytes present, but no PRVW child after them
 
     let mut data = Vec::new();
     write_ftyp(&mut data, b"crx ");
-    write_box(&mut data, b"moov", &moov_payload);
+    write_uuid_box(&mut data, &CANON_PREVIEW_UUID, &uuid_payload);
 
-    assert!(matches!(find_thumbnail(&data), Err(Cr3Error::ThumbnailNotFound)));
+    assert!(matches!(
+        find_thumbnail(&data),
+        Err(Cr3Error::MissingBox { fourcc, .. }) if fourcc == *b"PRVW"
+    ));
+}
+
+#[test]
+fn find_thumbnail_prvw_jpeg_size_larger_than_payload_is_box_too_short() {
+    let mut prvw_payload = vec![0u8; PRVW_JPEG_SIZE_FIELD_OFFSET];
+    prvw_payload.extend_from_slice(&999u32.to_be_bytes()); // jpeg_size claims far more than actually follows
+    prvw_payload.extend_from_slice(b"only-a-few-bytes");
+
+    let mut prvw_box = Vec::new();
+    write_box(&mut prvw_box, b"PRVW", &prvw_payload);
+
+    let mut uuid_payload = vec![0u8; PRVW_UUID_PAYLOAD_SKIP];
+    uuid_payload.extend_from_slice(&prvw_box);
+
+    let mut data = Vec::new();
+    write_ftyp(&mut data, b"crx ");
+    write_uuid_box(&mut data, &CANON_PREVIEW_UUID, &uuid_payload);
+
+    assert!(matches!(find_thumbnail(&data), Err(Cr3Error::BoxTooShort { .. })));
 }
 
 #[test]
