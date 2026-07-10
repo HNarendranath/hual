@@ -152,6 +152,7 @@ fn parse_header(data: &[u8]) -> Result<TiffHeader, TiffError> {
         ifd0_offset,
     })
 }
+
 fn read_ifd(data: &[u8], endian: Endian, offset: u32) -> Result<Ifd, TiffError> {
     let mut current_offset = offset as usize;
     let num_entries = endian.read_u16(data, current_offset)? as usize;

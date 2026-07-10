@@ -2,7 +2,6 @@ mod cr3;
 mod thumbnail;
 mod tiff;
 
-use std::backtrace::BacktraceStatus::Unsupported;
 use std::env;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -28,7 +27,7 @@ fn main() -> ExitCode {
 
     let extension = input.extension().and_then(|ext| ext.to_str()).unwrap_or("");
     let ext_lowercase = extension.to_ascii_lowercase();
-    let result: Result<Vec<u8>, Box<dyn std::error::Error>> = if ext_lowercase == "cr3" {
+    let result: Result<(Vec<u8>), Box<dyn std::error::Error>> = if ext_lowercase == "cr3" {
         cr3::extract_thumbnail(&input).map_err(|e| e.into())
     } else if TIFF_EXTENSIONS.contains(&ext_lowercase.as_str()) {
         tiff::extract_thumbnail(&input).map_err(|e| e.into())
