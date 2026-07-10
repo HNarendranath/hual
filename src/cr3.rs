@@ -306,3 +306,7 @@ pub fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, Cr3Error> {
     let thumbnail_bytes = data[start..end].to_vec();
     Ok(thumbnail_bytes)
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/cr3_tests.rs"]
+mod cr3_tests;

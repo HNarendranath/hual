@@ -149,7 +149,7 @@ fn subifd_offsets_absent_tag_is_empty() {
 }
 
 #[test]
-fn find_thumbnail_prefers_ifd1_over_ifd0_own_tags() {
+fn find_thumbnail_prefers_ifd0_own_tags_over_ifd1() {
     let ifd0_entries = vec![entry(0x0201, 4, 1, 9000), entry(0x0202, 4, 1, 500)];
     let ifd1_entries = vec![entry(0x0201, 4, 1, 1000), entry(0x0202, 4, 1, 50)];
     let ifd1_offset = IFD0_OFFSET + ifd_len(ifd0_entries.len());
@@ -158,9 +158,11 @@ fn find_thumbnail_prefers_ifd1_over_ifd0_own_tags() {
     write_ifd(&mut data, &ifd0_entries, ifd1_offset, true);
     write_ifd(&mut data, &ifd1_entries, 0, true);
 
+    // IFD0's own tags point at the higher-quality PreviewImage and take priority
+    // over IFD1's (smaller, spec-mandated EXIF thumbnail) — see commit 1187727.
     let loc = find_thumbnail(&data, Endian::Little, IFD0_OFFSET).unwrap();
-    assert_eq!(loc.offset, 1000);
-    assert_eq!(loc.length, 50);
+    assert_eq!(loc.offset, 9000);
+    assert_eq!(loc.length, 500);
 }
 
 #[test]

@@ -43,6 +43,28 @@ pub fn write_ifd(buf: &mut Vec<u8>, entries: &[Entry], next_offset: u32, little_
     write_u32(buf, next_offset, little_endian);
 }
 
+pub fn write_box(buf: &mut Vec<u8>, box_type: &[u8; 4], payload: &[u8]) {
+    let size = 8 + payload.len();
+    buf.extend_from_slice(&(size as u32).to_be_bytes());
+    buf.extend_from_slice(box_type);
+    buf.extend_from_slice(payload);
+}
+
+pub fn write_uuid_box(buf: &mut Vec<u8>, usertype: &[u8; 16], payload: &[u8]) {
+    let size = 8 + 16 + payload.len();
+    buf.extend_from_slice(&(size as u32).to_be_bytes());
+    buf.extend_from_slice(b"uuid");
+    buf.extend_from_slice(usertype);
+    buf.extend_from_slice(payload);
+}
+
+pub fn write_ftyp(buf: &mut Vec<u8>, major_brand: &[u8; 4]) {
+    let mut payload = Vec::new();
+    payload.extend_from_slice(major_brand);
+    payload.extend_from_slice(&0u32.to_be_bytes());
+    write_box(buf, b"ftyp", &payload);
+}
+
 pub struct TempFile {
     pub path: PathBuf,
 }
