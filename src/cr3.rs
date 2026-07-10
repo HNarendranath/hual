@@ -1,5 +1,4 @@
-use byteorder::{BigEndian, ByteOrder, LittleEndian};
-use core::num;
+use byteorder::{BigEndian, ByteOrder};
 use memmap2::Mmap;
 use std::fs::File;
 use std::path::Path;
@@ -286,4 +285,24 @@ fn find_thumbnail(data: &[u8]) -> Result<ThumbnailLocation, Cr3Error> {
     } else {
         Err(Cr3Error::ThumbnailNotFound)
     }
+}
+
+fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, Cr3Error> {
+    let file = File::open(path)?;
+    let mmap = unsafe { Mmap::map(&file)? };
+    let data: &[u8] = &mmap;
+
+    let location = find_thumbnail(data)?;
+
+    let start = location.offset;
+    let end = start
+        .checked_add(location.length)
+        .filter(|&e| e <= data.len())
+        .ok_or(Cr3Error::Truncated {
+            offset: start,
+            needed: location.length,
+            len: data.len(),
+        })?;
+    let thumbnail_bytes = data[start..end].to_vec();
+    Ok(thumbnail_bytes)
 }
