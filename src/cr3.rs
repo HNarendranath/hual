@@ -205,9 +205,13 @@ fn find_jpeg_soi(payload: &[u8]) -> Option<usize> {
     payload.windows(2).position(|window| window == [0xFF, 0xD8])
 }
 
+// usertype of the TOP-LEVEL "preview data" uuid box — a sibling of moov/mdat.
 const CANON_PREVIEW_UUID: [u8; 16] = [
-    0x85, 0xc0, 0xb6, 0x87, 0x82, 0x0f, 0x11, 0xe0, 0x81, 0x11, 0xf4, 0xce, 0x46, 0x2b, 0x6a, 0x48,
+    0xea, 0xf4, 0x2b, 0x5e, 0x1c, 0x98, 0x4b, 0x88, 0xb9, 0xfb, 0xb7, 0xdc, 0x40, 0x6e, 0x4d, 0x16,
 ];
+const PRVW_UUID_PAYLOAD_SKIP: usize = 8; // undocumented gap before PRVW's siblings start
+const PRVW_HEADER_LEN: usize = 16; // unknown:u32, unknown:u16, width:u16, height:u16, unknown:u16, jpeg_size:u32
+const PRVW_JPEG_SIZE_FIELD_OFFSET: usize = 12;
 
 struct ThumbnailLocation {
     offset: usize,
@@ -236,55 +240,78 @@ fn find_thumbnail(data: &[u8]) -> Result<ThumbnailLocation, Cr3Error> {
         return Err(Cr3Error::BadFtype { major_brand });
     }
 
-    let moov = boxes
-        .iter()
-        .find(|b| b.box_type == *b"moov")
-        .ok_or(Cr3Error::MissingBox {
-            fourcc: *b"moov",
-            context: "top-level dir layout",
-        })?;
-
-    let moov_end =
-        moov.payload_offset
-            .checked_add(moov.payload_len)
-            .ok_or(Cr3Error::BoxSizeOverflow {
-                offset: moov.payload_offset,
-            })?;
-    let moov_children = read_boxes(data, moov.payload_offset, moov_end)?;
-
-    let preview_uuid_box = moov_children
+    let preview_uuid = boxes
         .iter()
         .find(|b| b.box_type == *b"uuid" && b.usertype == Some(CANON_PREVIEW_UUID))
         .ok_or(Cr3Error::MissingBox {
             fourcc: *b"uuid",
-            context: "inside moov container",
+            context: "top-level preview container",
         })?;
 
-    let uuid_payload_start = preview_uuid_box.payload_offset;
-    let uuid_payload_end = uuid_payload_start
-        .checked_add(preview_uuid_box.payload_len)
+    let children_start = preview_uuid
+        .payload_offset
+        .checked_add(PRVW_UUID_PAYLOAD_SKIP)
         .ok_or(Cr3Error::BoxSizeOverflow {
-            offset: uuid_payload_start,
+            offset: preview_uuid.payload_offset,
         })?;
-    let uuid_slice = data
-        .get(uuid_payload_start..uuid_payload_end)
-        .ok_or(Cr3Error::Truncated {
-            offset: uuid_payload_start,
-            needed: preview_uuid_box.payload_len,
-            len: data.len(),
+    let children_end = preview_uuid
+        .payload_offset
+        .checked_add(preview_uuid.payload_len)
+        .ok_or(Cr3Error::BoxSizeOverflow {
+            offset: preview_uuid.payload_offset,
+        })?;
+    let children = read_boxes(data, children_start, children_end)?;
+
+    let prvw = children
+        .iter()
+        .find(|b| b.box_type == *b"PRVW")
+        .ok_or(Cr3Error::MissingBox {
+            fourcc: *b"PRVW",
+            context: "inside top-level preview uuid",
         })?;
 
-    if let Some(soi_relative_offset) = find_jpeg_soi(uuid_slice) {
-        let absolute_offset = uuid_payload_start + soi_relative_offset;
-        let length = preview_uuid_box.payload_len - soi_relative_offset;
+    let jpeg_size_offset = prvw
+        .payload_offset
+        .checked_add(PRVW_JPEG_SIZE_FIELD_OFFSET)
+        .ok_or(Cr3Error::BoxSizeOverflow {
+            offset: prvw.payload_offset,
+        })?;
+    let jpeg_size = usize::try_from(read_u32_be(data, jpeg_size_offset)?).map_err(|_| {
+        Cr3Error::BoxSizeOverflow {
+            offset: jpeg_size_offset,
+        }
+    })?;
 
-        Ok(ThumbnailLocation {
-            offset: absolute_offset,
-            length,
-        })
-    } else {
-        Err(Cr3Error::ThumbnailNotFound)
+    let jpeg_offset =
+        prvw.payload_offset
+            .checked_add(PRVW_HEADER_LEN)
+            .ok_or(Cr3Error::BoxSizeOverflow {
+                offset: prvw.payload_offset,
+            })?;
+    let jpeg_end = jpeg_offset
+        .checked_add(jpeg_size)
+        .ok_or(Cr3Error::BoxSizeOverflow {
+            offset: jpeg_offset,
+        })?;
+    let prvw_payload_end =
+        prvw.payload_offset
+            .checked_add(prvw.payload_len)
+            .ok_or(Cr3Error::BoxSizeOverflow {
+                offset: prvw.payload_offset,
+            })?;
+    // check for corruption
+    if jpeg_end > prvw_payload_end {
+        return Err(Cr3Error::BoxTooShort {
+            offset: prvw.payload_offset,
+            size: jpeg_size,
+            header_len: PRVW_HEADER_LEN,
+        });
     }
+
+    Ok(ThumbnailLocation {
+        offset: jpeg_offset,
+        length: jpeg_size,
+    })
 }
 
 pub fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, Cr3Error> {
