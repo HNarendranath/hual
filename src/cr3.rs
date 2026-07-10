@@ -130,7 +130,7 @@ fn read_box_header(data: &[u8], offset: usize, end: usize) -> Result<BoxHeader, 
     let total_size = if size == 1 {
         let size_u64 = read_u64_be(data, current_offset)?;
         current_offset += 8;
-        size_u64 as usize
+        usize::try_from(size_u64).map_err(|_| Cr3Error::BoxSizeOverflow { offset })?
     } else if size == 0 {
         end - offset
     } else {
@@ -189,14 +189,6 @@ fn read_boxes(data: &[u8], start: usize, end: usize) -> Result<Vec<BoxHeader>, C
     let mut boxes = Vec::new();
     let mut current_offset = start;
 
-    if end - current_offset < 8 {
-        return Err(Cr3Error::Truncated {
-            offset: current_offset,
-            needed: 8,
-            len: end - current_offset,
-        });
-    }
-
     while current_offset < end {
         let box_header = read_box_header(data, current_offset, end)?;
         boxes.push(box_header);
@@ -208,4 +200,90 @@ fn read_boxes(data: &[u8], start: usize, end: usize) -> Result<Vec<BoxHeader>, C
             })?;
     }
     Ok(boxes)
+}
+
+fn find_jpeg_soi(payload: &[u8]) -> Option<usize> {
+    payload.windows(2).position(|window| window == [0xFF, 0xD8])
+}
+
+const CANON_PREVIEW_UUID: [u8; 16] = [
+    0x85, 0xC0, 0xB6, 0x87, 0x82, 0x0F, 0x11, 0xE0, 0x81, 0x11, 0xF4, 0xCE, 0x46, 0x2B, 0x37, 0x4C,
+];
+
+struct ThumbnailLocation {
+    offset: usize,
+    length: usize,
+}
+
+fn find_thumbnail(data: &[u8]) -> Result<ThumbnailLocation, Cr3Error> {
+    let file_len = data.len();
+    let boxes = read_boxes(data, 0, file_len)?;
+
+    let ftyp = boxes
+        .iter()
+        .find(|b| b.box_type == *b"ftyp")
+        .ok_or(Cr3Error::NotAnIsobmff { found: [0; 4] })?;
+
+    let mut major_brand = [0u8; 4];
+    major_brand.copy_from_slice(
+        data.get(ftyp.payload_offset..ftyp.payload_offset + 4)
+            .ok_or(Cr3Error::Truncated {
+                offset: ftyp.payload_offset,
+                needed: 4,
+                len: data.len(),
+            })?,
+    );
+    if major_brand != *b"crx " {
+        return Err(Cr3Error::BadFtype { major_brand });
+    }
+
+    let moov = boxes
+        .iter()
+        .find(|b| b.box_type == *b"moov")
+        .ok_or(Cr3Error::MissingBox {
+            fourcc: *b"moov",
+            context: "top-level dir layout",
+        })?;
+
+    let moov_end =
+        moov.payload_offset
+            .checked_add(moov.payload_len)
+            .ok_or(Cr3Error::BoxSizeOverflow {
+                offset: moov.payload_offset,
+            })?;
+    let moov_children = read_boxes(data, moov.payload_offset, moov_end)?;
+
+    let preview_uuid_box = moov_children
+        .iter()
+        .find(|b| b.box_type == *b"uuid" && b.usertype == Some(CANON_PREVIEW_UUID))
+        .ok_or(Cr3Error::MissingBox {
+            fourcc: *b"uuid",
+            context: "inside moov container",
+        })?;
+
+    let uuid_payload_start = preview_uuid_box.payload_offset;
+    let uuid_payload_end = uuid_payload_start
+        .checked_add(preview_uuid_box.payload_len)
+        .ok_or(Cr3Error::BoxSizeOverflow {
+            offset: uuid_payload_start,
+        })?;
+    let uuid_slice = data
+        .get(uuid_payload_start..uuid_payload_end)
+        .ok_or(Cr3Error::Truncated {
+            offset: uuid_payload_start,
+            needed: preview_uuid_box.payload_len,
+            len: data.len(),
+        })?;
+
+    if let Some(soi_relative_offset) = find_jpeg_soi(uuid_slice) {
+        let aboslute_offset = (uuid_payload_start + soi_relative_offset) as usize;
+        let length = (preview_uuid_box.payload_len - soi_relative_offset) as usize;
+
+        Ok(ThumbnailLocation {
+            offset: aboslute_offset,
+            length,
+        })
+    } else {
+        Err(Cr3Error::ThumbnailNotFound)
+    }
 }
