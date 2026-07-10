@@ -19,6 +19,46 @@ pub enum TiffError {
     ThumbnailNotFound,
 }
 
+// NB this made me WAY too happy lol
+impl From<std::io::Error> for TiffError {
+    fn from(e: std::io::Error) -> Self {
+        TiffError::Io(e)
+    }
+}
+
+impl std::fmt::Display for TiffError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TiffError::Io(e) => write!(f, "I/O error: {e}"),
+            TiffError::BadMagic { found } => write!(
+                f,
+                "unrecognized TIFF byte order marker {found:?} (expected \"II\" or \"MM\")"
+            ),
+            TiffError::BadMagicNumber(n) => {
+                write!(f, "invalid TIFF magic number {n} (expected 42)")
+            }
+            TiffError::Truncated {
+                offset,
+                needed,
+                len,
+            } => write!(
+                f,
+                "file truncated: needed {needed} bytes at offset {offset}, but file is only {len} bytes long"
+            ),
+            TiffError::ThumbnailNotFound => write!(f, "no embedded thumbnail found in this file"),
+        }
+    }
+}
+
+impl std::error::Error for TiffError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            TiffError::Io(e) => Some(e),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Endian {
     Little,
@@ -46,13 +86,6 @@ impl Endian {
             Endian::Little => LittleEndian::read_u32(bytes),
             Endian::Big => BigEndian::read_u32(bytes),
         })
-    }
-}
-
-// NB this made me WAY too happy lol
-impl From<std::io::Error> for TiffError {
-    fn from(e: std::io::Error) -> Self {
-        TiffError::Io(e)
     }
 }
 
@@ -235,5 +268,5 @@ pub fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, TiffError> {
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/tiff.rs"]
-mod tests;
+#[path = "../tests/unit/tiff_tests.rs"]
+mod tiff_tests;
