@@ -275,11 +275,11 @@ fn find_thumbnail(data: &[u8]) -> Result<ThumbnailLocation, Cr3Error> {
         })?;
 
     if let Some(soi_relative_offset) = find_jpeg_soi(uuid_slice) {
-        let aboslute_offset = (uuid_payload_start + soi_relative_offset) as usize;
-        let length = (preview_uuid_box.payload_len - soi_relative_offset) as usize;
+        let absolute_offset = uuid_payload_start + soi_relative_offset;
+        let length = preview_uuid_box.payload_len - soi_relative_offset;
 
         Ok(ThumbnailLocation {
-            offset: aboslute_offset,
+            offset: absolute_offset,
             length,
         })
     } else {
