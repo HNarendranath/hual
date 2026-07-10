@@ -287,7 +287,7 @@ fn find_thumbnail(data: &[u8]) -> Result<ThumbnailLocation, Cr3Error> {
     }
 }
 
-fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, Cr3Error> {
+pub fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, Cr3Error> {
     let file = File::open(path)?;
     let mmap = unsafe { Mmap::map(&file)? };
     let data: &[u8] = &mmap;
