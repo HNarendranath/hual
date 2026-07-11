@@ -1,4 +1,4 @@
-use std::collection::HashMap;
+use std::collections::HashMap;
 use std::hash::Hash;
 
 struct Node<K, V> {
@@ -82,10 +82,10 @@ impl<K: Eq + Hash + Clone, V> LRUCache<K, V> {
     pub fn get(&mut self, key: &K) -> Option<&V> {
         let index = *self.map.get(key)?;
         self.touch(index);
-        self.nodes[index].value.as_ref();
+        self.nodes[index].value.as_ref()
     }
 
-    pub fn put(&mut self, key: K, value: V) {
+    pub fn put(&mut self, key: K, value: V) -> Option<V> {
         if let Some(&index) = self.map.get(&key) {
             self.touch(index);
             return self.nodes[index].value.replace(value);
@@ -96,18 +96,21 @@ impl<K: Eq + Hash + Clone, V> LRUCache<K, V> {
             None => {
                 let to_evict = self.nodes[TAIL].prev;
                 self.unlink(to_evict);
-                let evicted_k = self.nodes[to_evict].key.take();
+                let evicted_k = self.nodes[to_evict]
+                    .key
+                    .take()
+                    .expect("real node always has a key");
                 let evicted_v = self.nodes[to_evict].value.take();
-                self.map.remove(*evicted_k);
+                self.map.remove(&evicted_k);
                 (to_evict, evicted_v)
             }
         };
 
-        self.nodes[index] = Some(key.clone());
+        self.nodes[index].key = Some(key.clone());
         self.nodes[index].value = Some(value);
         self.map.insert(key, index);
         self.link_first(index);
 
-        evicted_v
+        evicted
     }
 }
