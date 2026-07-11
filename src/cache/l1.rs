@@ -114,3 +114,7 @@ impl<K: Eq + Hash + Clone, V> LRUCache<K, V> {
         evicted
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/l1_tests.rs"]
+mod l1_tests;
