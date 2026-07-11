@@ -1,6 +1,4 @@
-mod cr3;
 mod thumbnail;
-mod tiff;
 
 use std::env;
 use std::path::PathBuf;

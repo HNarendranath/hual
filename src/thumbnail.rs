@@ -1,5 +1,5 @@
-use crate::cr3;
-use crate::tiff;
+mod cr3;
+mod tiff;
 
 use std::path::Path;
 

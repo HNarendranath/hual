@@ -335,5 +335,5 @@ pub fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, Cr3Error> {
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/cr3_tests.rs"]
+#[path = "../../tests/unit/cr3_tests.rs"]
 mod cr3_tests;

@@ -268,5 +268,5 @@ pub fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, TiffError> {
 }
 
 #[cfg(test)]
-#[path = "../tests/unit/tiff_tests.rs"]
+#[path = "../../tests/unit/tiff_tests.rs"]
 mod tiff_tests;
