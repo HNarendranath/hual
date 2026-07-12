@@ -2,14 +2,33 @@ mod cache;
 mod thumbnail;
 
 use std::env;
+use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
     let mut args = env::args_os().skip(1);
 
+    let Some(cmd) = args.next() else {
+        eprintln!("Usage: hual <thumb|info> <input> [output]");
+        return ExitCode::FAILURE;
+    };
+
+    match cmd.to_str() {
+        Some("thumb") => thumbnail(args),
+        Some("info") => exif(args),
+        _ => {
+            eprintln!("Usage: hual <thumb|info> <input> [output]");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    ExitCode::SUCCESS
+}
+
+fn thumbnail(mut args: impl Iterator<Item = OsString>) -> ExitCode {
     let Some(input) = args.next() else {
-        eprintln!("Usage: hual <input.tiff>");
+        eprintln!("Usage: hual thumb <input> [output]");
         return ExitCode::FAILURE;
     };
 
@@ -36,4 +55,33 @@ fn main() -> ExitCode {
 
     println!("Wrote {} bytes to {}", bytes.len(), output.display());
     ExitCode::SUCCESS
+}
+
+fn exif(mut args: impl Iterator<Item = OsString>) -> ExitCode {
+    let Some(input) = args.next() else {
+        eprintln!("Usage: hual info <input>");
+        return ExitCode::FAILURE;
+    };
+
+    let input = PathBuf::from(input);
+    let ext = input.extension().and_then(|e| e.to_str()).unwrap_or("");
+
+    let bytes = match std::fs::read(&input) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            eprintln!("Error reading {}: {e}", input.display());
+            return ExitCode::FAILURE;
+        }
+    };
+
+    match thumbnail::extract_exif_from_bytes(&bytes, ext) {
+        Ok(exif) => {
+            println!("{exif:#?}");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("Err extracting EXIF from {}: {e}", input.display());
+            ExitCode::FAILURE
+        }
+    }
 }
