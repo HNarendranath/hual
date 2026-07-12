@@ -18,6 +18,7 @@ fn main() -> ExitCode {
     match cmd.to_str() {
         Some("thumb") => thumbnail(args),
         Some("info") => exif(args),
+        Some("import") => import(args),
         _ => {
             eprintln!("Usage: hual <thumb|info> <input> [output]");
             return ExitCode::FAILURE;
@@ -85,4 +86,18 @@ fn exif(mut args: impl Iterator<Item = OsString>) -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+fn import(mut args: impl Iterator<Item = OsString>) -> ExitCode {
+    let Some(source) = args.next() else {
+        eprintln!("Usage: hual info <input>");
+        return ExitCode::FAILURE;
+    };
+    let Some(dest) = args.next() else {
+        eprintln!("Usage: hual import <source_dir> <dest_dir>");
+        return ExitCode::FAILURE;
+    };
+
+    pipeline::run_import(&PathBuf::from(source), &PathBuf::from(dest));
+    ExitCode::SUCCESS
 }
