@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 memmap2 = "0.9"
 byteorder = "1.5"
+crossbeam-channel = "0.5"
 
 [profile.release]
 opt-level = 3

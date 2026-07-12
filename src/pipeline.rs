@@ -3,6 +3,9 @@ mod scanner;
 mod ssd_writer;
 mod worker;
 
+use crate::thumbnail::ExifData;
+use std::path::PathBuf;
+
 // disk read -> worker
 pub struct RawFile {
     pub src_path: PathBuf,
@@ -19,6 +22,6 @@ pub struct WriteJob {
 pub struct MetadataRecord {
     pub src_path: PathBuf,
     pub dest_path: PathBuf,
-    pub exif: Option<EfixData>,
+    pub exif: Option<ExifData>,
     pub thumbnail: Option<Vec<u8>>,
 }

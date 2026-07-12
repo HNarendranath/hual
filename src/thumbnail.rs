@@ -1,5 +1,6 @@
 mod cr3;
 mod tiff;
+pub use tiff::ExifData;
 
 use std::path::Path;
 
