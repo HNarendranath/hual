@@ -270,6 +270,86 @@ pub fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, TiffError> {
     extract_thumbnail_from_bytes(data)
 }
 
+// === EXIF Code ===
+
+const EXIF_IFD_POINTER: u16 = 0x8769; // tag on IFD0 pointing at the Exif sub-IFD
+const TAG_EXPOSURE_TIME: u16 = 0x829A; // RATIONAL — shutter speed
+const TAG_F_STOP: u16 = 0x829D; // RATIONAL — aperture
+const TAG_ISO: u16 = 0x8827; // SHORT — ISO
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ExifData {
+    pub exposure_time: Option<(u32, u32)>,
+    pub f_stop: Option<(u32, u32)>,
+    pub iso: Option<u16>,
+}
+
+fn read_rational(data: &[u8], endian: Endian, offset: usize) -> Result<(u32, u32), TiffError> {
+    let num = endian.read_u32(data, offset)?;
+    let denom = endian.read_u32(data, offset + 4)?;
+    Ok((num, denom))
+}
+
+fn inline_u16(entry: &IfdEntry, endian: Endian) -> u16 {
+    match endian {
+        Endian::Little => entry.value_or_offset as u16,
+        Endian::Big => (entry.value_or_offset >> 16) as u16,
+    }
+}
+
+fn exif_ifd_offset(ifd: &Ifd) -> Option<u32> {
+    ifd.entries
+        .iter()
+        .find(|e| e.tag == EXIF_IFD_POINTER)
+        .map(|e| e.value_or_offset)
+}
+
+fn exif_tags(data: &[u8], endian: Endian, ifd: &Ifd) -> Result<ExifData, TiffError> {
+    let exposure_time = match ifd.entries.iter().find(|e| e.tag == TAG_EXPOSURE_TIME) {
+        Some(entry) => Some(read_rational(data, endian, entry.value_or_offset as usize)?),
+        None => None,
+    };
+
+    let f_stop = match ifd.entries.iter().find(|e| e.tag == TAG_F_STOP) {
+        Some(entry) => Some(read_rational(data, endian, entry.value_or_offset as usize)?),
+        None => None,
+    };
+
+    let iso = ifd
+        .entries
+        .iter()
+        .find(|e| e.tag == TAG_ISO)
+        .map(|e| inline_u16(e, endian));
+
+    Ok(ExifData {
+        exposure_time,
+        f_stop,
+        iso,
+    })
+}
+
+pub fn extract_exif_from_bytes(data: &[u8]) -> Result<ExifData, TiffError> {
+    let header = parse_header(data)?;
+    let ifd0 = read_ifd(data, header.endian, header.ifd0_offset)?;
+
+    let Some(exif_offset) = exif_ifd_offset(&ifd0) else {
+        return Ok(ExifData {
+            exposure_time: None,
+            f_stop: None,
+            iso: None,
+        });
+    };
+
+    let exif_ifd = read_ifd(data, header.endian, exif_offset)?;
+    exif_tags(data, header.endian, &exif_ifd)
+}
+
+pub fn extract_exif(path: &Path) -> Result<ExifData, TiffError> {
+    let file = File::open(path)?;
+    let mmap = unsafe { Mmap::map(&file)? };
+    extract_exif_from_bytes(&mmap)
+}
+
 #[cfg(test)]
 #[path = "../../tests/unit/tiff_tests.rs"]
 mod tiff_tests;
