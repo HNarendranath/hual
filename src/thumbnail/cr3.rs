@@ -1,7 +1,10 @@
+use super::tiff;
 use byteorder::{BigEndian, ByteOrder};
 use memmap2::Mmap;
 use std::fs::File;
 use std::path::Path;
+
+use crate::thumbnail::tiff::TiffError;
 
 #[derive(Debug)]
 pub enum Cr3Error {
@@ -30,6 +33,7 @@ pub enum Cr3Error {
         context: &'static str,
     },
     ThumbnailNotFound,
+    Tiff(TiffError),
 }
 
 impl From<std::io::Error> for Cr3Error {
@@ -70,6 +74,7 @@ impl std::fmt::Display for Cr3Error {
                 "missing box {fourcc:?} in {context} (file may be truncated or malformed)"
             ),
             Cr3Error::ThumbnailNotFound => write!(f, "no embedded thumbnail found in this file"),
+            Cr3Error::Tiff(e) => write!(f, "tiff error: {e}"),
         }
     }
 }
@@ -334,6 +339,59 @@ pub fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, Cr3Error> {
     let mmap = unsafe { Mmap::map(&file)? };
     let data: &[u8] = &mmap;
     extract_thumbnail_from_bytes(data)
+}
+
+// === EXIF Code ===
+
+const CANON_METADATA_UUID: [u8; 16] = [
+    0x85, 0xc0, 0xb6, 0x87, 0x82, 0x0f, 0x11, 0xe0, 0x81, 0x11, 0xf4, 0xce, 0x46, 0x2b, 0x6a, 0x48,
+];
+
+pub fn extract_exif_from_bytes(data: &[u8]) -> Result<tiff::ExifData, Cr3Error> {
+    let boxes = read_boxes(data, 0, data.len())?;
+
+    let moov = boxes
+        .iter()
+        .find(|b| b.box_type == *b"moov")
+        .ok_or(Cr3Error::MissingBox {
+            fourcc: *b"moov",
+            context: "top level boxes",
+        })?;
+    let moov_children = read_boxes(
+        data,
+        moov.payload_offset,
+        moov.payload_offset + moov.payload_len,
+    )?;
+
+    let canon_uuid = moov_children
+        .iter()
+        .find(|b| b.box_type == *b"uuid" && b.usertype == Some(CANON_METADATA_UUID))
+        .ok_or(Cr3Error::MissingBox {
+            fourcc: *b"uuid",
+            context: "inside moov",
+        })?;
+    let canon_children = read_boxes(
+        data,
+        canon_uuid.payload_offset,
+        canon_uuid.payload_len + canon_uuid.payload_offset,
+    )?;
+
+    let cmt2 = canon_children
+        .iter()
+        .find(|b| b.box_type == *b"CMT2")
+        .ok_or(Cr3Error::MissingBox {
+            fourcc: *b"CMT2",
+            context: "inside canon moov uuid",
+        })?;
+    let cmt2_data = data
+        .get(cmt2.payload_offset..cmt2.payload_offset + cmt2.payload_len)
+        .ok_or(Cr3Error::Truncated {
+            offset: cmt2.payload_offset,
+            needed: cmt2.payload_len,
+            len: data.len(),
+        })?;
+
+    tiff::extract_exif_from_ifd0(cmt2_data).map_err(Cr3Error::Tiff)
 }
 
 #[cfg(test)]

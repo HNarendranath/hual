@@ -350,6 +350,13 @@ pub fn extract_exif(path: &Path) -> Result<ExifData, TiffError> {
     extract_exif_from_bytes(&mmap)
 }
 
+// subsection of cr3 containing exif data is tiff formatted so can reuse code
+pub(super) fn extract_exif_from_ifd0(data: &[u8]) -> Result<ExifData, TiffError> {
+    let header = parse_header(data)?;
+    let ifd0 = read_ifd(data, header.endian, header.ifd0_offset)?;
+    exif_tags(data, header.endian, &ifd0)
+}
+
 #[cfg(test)]
 #[path = "../../tests/unit/tiff_tests.rs"]
 mod tiff_tests;

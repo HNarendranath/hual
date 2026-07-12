@@ -64,7 +64,7 @@ pub fn extract_exif_from_bytes(
     ext: &str,
 ) -> Result<tiff::ExifData, Box<dyn std::error::Error>> {
     match get_fmt(ext) {
-        Some(Format::Cr3) => Err("Cr3 exit not supported yet".into()), // TODO
+        Some(Format::Cr3) => cr3::extract_exif_from_bytes(data).map_err(Into::into),
         Some(Format::Tiff) => tiff::extract_exif_from_bytes(data).map_err(Into::into),
         None if ext.is_empty() => Err("no file extension given".into()),
         None => Err(format!("Unsupported file format: '.{}'", ext).into()),
