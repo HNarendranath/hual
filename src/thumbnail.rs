@@ -3,22 +3,48 @@ mod tiff;
 
 use std::path::Path;
 
-pub fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    const TIFF_EXTENSIONS: &[&str] = &[
-        "tiff", "tif", "arw", "cr2", "nef", "raf", "orf", "dng", "nrw", "rw2", "pef", "iiq", "3fr",
-        "fff", "sr2", "srf",
-    ];
+const TIFF_EXTENSIONS: &[&str] = &[
+    "tiff", "tif", "arw", "cr2", "nef", "raf", "orf", "dng", "nrw", "rw2", "pef", "iiq", "3fr",
+    "fff", "sr2", "srf",
+];
 
-    let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
+enum Format {
+    Cr3,
+    Tiff,
+}
+
+fn get_fmt(extension: &str) -> Option<Format> {
     let ext_lowercase = extension.to_ascii_lowercase();
-    let result: Result<(Vec<u8>), Box<dyn std::error::Error>> = if ext_lowercase == "cr3" {
-        cr3::extract_thumbnail(&path).map_err(|e| e.into())
+    if ext_lowercase == "cr3" {
+        Some(Format::Cr3)
     } else if TIFF_EXTENSIONS.contains(&ext_lowercase.as_str()) {
-        tiff::extract_thumbnail(&path).map_err(|e| e.into())
-    } else if ext_lowercase.is_empty() {
-        Err(format!("File '{}' has no extension", path.display()).into())
+        Some(Format::Tiff)
     } else {
-        Err(format!("Unsupported file format: '.{}'", extension).into())
+        None
+    }
+}
+
+pub fn extract_thumbnail_from_bytes(
+    data: &[u8],
+    ext: &str,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    match get_fmt(ext) {
+        Some(Format::Cr3) => cr3::extract_thumbnail_from_bytes(data).map_err(Into::into),
+        Some(Format::Tiff) => tiff::extract_thumbnail_from_bytes(data).map_err(Into::into),
+        None if ext.is_empty() => Err("no file extension given".into()),
+        None => Err(format!("Unsupported file format: '.{}'", ext).into()),
+    }
+}
+
+pub fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
+    let result: Result<(Vec<u8>), Box<dyn std::error::Error>> = match get_fmt(extension) {
+        Some(Format::Cr3) => cr3::extract_thumbnail(path).map_err(Into::into),
+        Some(Format::Tiff) => tiff::extract_thumbnail(path).map_err(Into::into),
+        None if extension.is_empty() => {
+            Err(format!("File '{}' has no extension", path.display()).into())
+        }
+        None => Err(format!("Unsupported file format: '.{}'", extension).into()),
     };
 
     let bytes = match result {

@@ -314,13 +314,8 @@ fn find_thumbnail(data: &[u8]) -> Result<ThumbnailLocation, Cr3Error> {
     })
 }
 
-pub fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, Cr3Error> {
-    let file = File::open(path)?;
-    let mmap = unsafe { Mmap::map(&file)? };
-    let data: &[u8] = &mmap;
-
+pub fn extract_thumbnail_from_bytes(data: &[u8]) -> Result<Vec<u8>, Cr3Error> {
     let location = find_thumbnail(data)?;
-
     let start = location.offset;
     let end = start
         .checked_add(location.length)
@@ -332,6 +327,13 @@ pub fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, Cr3Error> {
         })?;
     let thumbnail_bytes = data[start..end].to_vec();
     Ok(thumbnail_bytes)
+}
+
+pub fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, Cr3Error> {
+    let file = File::open(path)?;
+    let mmap = unsafe { Mmap::map(&file)? };
+    let data: &[u8] = &mmap;
+    extract_thumbnail_from_bytes(data)
 }
 
 #[cfg(test)]

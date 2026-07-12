@@ -245,13 +245,7 @@ fn find_thumbnail(
     Err(TiffError::ThumbnailNotFound)
 }
 
-pub fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, TiffError> {
-    // File::open, unsafe { Mmap::map }, parse_header, find_thumbnail,
-    // bounds-checked slice, .to_vec()
-    let file = File::open(path)?;
-    let mmap = unsafe { Mmap::map(&file)? };
-    let data: &[u8] = &mmap;
-
+pub fn extract_thumbnail_from_bytes(data: &[u8]) -> Result<Vec<u8>, TiffError> {
     let header = parse_header(data)?;
     let location = find_thumbnail(data, header.endian, header.ifd0_offset)?;
 
@@ -265,6 +259,15 @@ pub fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, TiffError> {
             len: data.len(),
         })?;
     Ok(data[start..end].to_vec())
+}
+
+pub fn extract_thumbnail(path: &Path) -> Result<Vec<u8>, TiffError> {
+    // File::open, unsafe { Mmap::map }, parse_header, find_thumbnail,
+    // bounds-checked slice, .to_vec()
+    let file = File::open(path)?;
+    let mmap = unsafe { Mmap::map(&file)? };
+    let data: &[u8] = &mmap;
+    extract_thumbnail_from_bytes(data)
 }
 
 #[cfg(test)]
