@@ -1,4 +1,5 @@
 mod cache;
+mod pipeline;
 mod thumbnail;
 
 use std::env;

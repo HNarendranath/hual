@@ -43,7 +43,7 @@ fn scan_dir(dir: &Path, tx: &Sender<RawFile>) {
             continue;
         }
 
-        if !file_type.is_file() {
+        if !ftype.is_file() {
             continue;
         }
 

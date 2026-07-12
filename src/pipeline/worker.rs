@@ -8,7 +8,7 @@ pub fn run(
     write_tx: Sender<WriteJob>,
     db_tx: Sender<MetadataRecord>,
     source_dir: &Path,
-    dest_path: &Path,
+    dest_dir: &Path,
 ) {
     for file in rx {
         let ext = file
@@ -16,7 +16,6 @@ pub fn run(
             .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("");
-    
 
         let thumbnail = match thumbnail::extract_thumbnail_from_bytes(&file.bytes, ext) {
             Ok(bytes) => Some(bytes),
@@ -47,12 +46,12 @@ pub fn run(
         let dest = dest_dir.join(relative);
 
         let write_job = WriteJob {
-            dest_path: dest_path.clone(),
+            dest_path: dest.clone(),
             bytes: file.bytes,
         };
         let record = MetadataRecord {
-            file.src_path,
-            dest_path,
+            src_path: file.src_path,
+            dest_path: dest,
             exif,
             thumbnail,
         };
@@ -61,5 +60,5 @@ pub fn run(
             continue;
         }
         let _ = db_tx.send(record);
-    };
+    }
 }
