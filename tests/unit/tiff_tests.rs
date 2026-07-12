@@ -228,3 +228,176 @@ fn extract_thumbnail_missing_file_is_io_error() {
     let path = std::env::temp_dir().join("hual_test_does_not_exist_12345.tiff");
     assert!(matches!(extract_thumbnail(&path), Err(TiffError::Io(_))));
 }
+
+// === EXIF tests ===
+
+#[test]
+fn read_rational_reads_num_and_denom() {
+    let mut data = vec![0u8; 8];
+    data[0..4].copy_from_slice(&1u32.to_le_bytes());
+    data[4..8].copy_from_slice(&200u32.to_le_bytes());
+    assert_eq!(read_rational(&data, Endian::Little, 0).unwrap(), (1, 200));
+
+    let mut data_be = vec![0u8; 8];
+    data_be[0..4].copy_from_slice(&1u32.to_be_bytes());
+    data_be[4..8].copy_from_slice(&200u32.to_be_bytes());
+    assert_eq!(read_rational(&data_be, Endian::Big, 0).unwrap(), (1, 200));
+}
+
+#[test]
+fn read_rational_rejects_truncated() {
+    let data = [0u8; 4];
+    assert!(matches!(
+        read_rational(&data, Endian::Little, 0),
+        Err(TiffError::Truncated { .. })
+    ));
+}
+
+#[test]
+fn inline_u16_little_endian_uses_low_bytes() {
+    let e = ifd_entry(TAG_ISO, 3, 1, 800);
+    assert_eq!(inline_u16(&e, Endian::Little), 800);
+}
+
+#[test]
+fn inline_u16_big_endian_uses_high_bytes() {
+    let e = ifd_entry(TAG_ISO, 3, 1, 800u32 << 16);
+    assert_eq!(inline_u16(&e, Endian::Big), 800);
+}
+
+#[test]
+fn exif_ifd_offset_found() {
+    let ifd = Ifd { entries: vec![ifd_entry(EXIF_IFD_POINTER, 4, 1, 500)], next_offset: 0 };
+    assert_eq!(exif_ifd_offset(&ifd), Some(500));
+}
+
+#[test]
+fn exif_ifd_offset_missing_is_none() {
+    let ifd = Ifd { entries: vec![], next_offset: 0 };
+    assert_eq!(exif_ifd_offset(&ifd), None);
+}
+
+#[test]
+fn exif_tags_reads_all_present() {
+    let mut data = vec![0u8; 16];
+    data[0..4].copy_from_slice(&1u32.to_le_bytes());
+    data[4..8].copy_from_slice(&250u32.to_le_bytes());
+    data[8..12].copy_from_slice(&28u32.to_le_bytes());
+    data[12..16].copy_from_slice(&10u32.to_le_bytes());
+
+    let ifd = Ifd {
+        entries: vec![
+            ifd_entry(TAG_EXPOSURE_TIME, 5, 1, 0),
+            ifd_entry(TAG_F_STOP, 5, 1, 8),
+            ifd_entry(TAG_ISO, 3, 1, 400),
+        ],
+        next_offset: 0,
+    };
+
+    let exif = exif_tags(&data, Endian::Little, &ifd).unwrap();
+    assert_eq!(exif.exposure_time, Some((1, 250)));
+    assert_eq!(exif.f_stop, Some((28, 10)));
+    assert_eq!(exif.iso, Some(400));
+}
+
+#[test]
+fn exif_tags_missing_tags_are_all_none() {
+    let ifd = Ifd { entries: vec![], next_offset: 0 };
+    let exif = exif_tags(&[], Endian::Little, &ifd).unwrap();
+    assert_eq!(exif, ExifData { exposure_time: None, f_stop: None, iso: None });
+}
+
+#[test]
+fn exif_tags_partial_only_iso_present() {
+    let ifd = Ifd { entries: vec![ifd_entry(TAG_ISO, 3, 1, 100)], next_offset: 0 };
+    let exif = exif_tags(&[], Endian::Little, &ifd).unwrap();
+    assert_eq!(exif.exposure_time, None);
+    assert_eq!(exif.f_stop, None);
+    assert_eq!(exif.iso, Some(100));
+}
+
+#[test]
+fn extract_exif_from_bytes_reads_full_exif_ifd() {
+    let exif_ifd_offset = IFD0_OFFSET + ifd_len(1);
+    let rational1_offset = exif_ifd_offset + ifd_len(3);
+    let rational2_offset = rational1_offset + 8;
+
+    let ifd0_entries = vec![entry(EXIF_IFD_POINTER, 4, 1, exif_ifd_offset)];
+    let exif_entries = vec![
+        entry(TAG_EXPOSURE_TIME, 5, 1, rational1_offset),
+        entry(TAG_F_STOP, 5, 1, rational2_offset),
+        entry(TAG_ISO, 3, 1, 400),
+    ];
+
+    let mut data = Vec::new();
+    write_header(&mut data, true);
+    write_ifd(&mut data, &ifd0_entries, 0, true);
+    write_ifd(&mut data, &exif_entries, 0, true);
+    data.extend_from_slice(&1u32.to_le_bytes());
+    data.extend_from_slice(&250u32.to_le_bytes());
+    data.extend_from_slice(&28u32.to_le_bytes());
+    data.extend_from_slice(&10u32.to_le_bytes());
+
+    let exif = extract_exif_from_bytes(&data).unwrap();
+    assert_eq!(exif.exposure_time, Some((1, 250)));
+    assert_eq!(exif.f_stop, Some((28, 10)));
+    assert_eq!(exif.iso, Some(400));
+}
+
+#[test]
+fn extract_exif_from_bytes_reads_full_exif_ifd_big_endian() {
+    let exif_ifd_offset = IFD0_OFFSET + ifd_len(1);
+    let rational1_offset = exif_ifd_offset + ifd_len(2);
+
+    let ifd0_entries = vec![entry(EXIF_IFD_POINTER, 4, 1, exif_ifd_offset)];
+    let exif_entries = vec![
+        entry(TAG_ISO, 3, 1, 400u32 << 16),
+        entry(TAG_EXPOSURE_TIME, 5, 1, rational1_offset),
+    ];
+
+    let mut data = Vec::new();
+    write_header(&mut data, false);
+    write_ifd(&mut data, &ifd0_entries, 0, false);
+    write_ifd(&mut data, &exif_entries, 0, false);
+    data.extend_from_slice(&1u32.to_be_bytes());
+    data.extend_from_slice(&320u32.to_be_bytes());
+
+    let exif = extract_exif_from_bytes(&data).unwrap();
+    assert_eq!(exif.iso, Some(400));
+    assert_eq!(exif.exposure_time, Some((1, 320)));
+    assert_eq!(exif.f_stop, None);
+}
+
+#[test]
+fn extract_exif_from_bytes_missing_exif_pointer_returns_all_none() {
+    let mut data = Vec::new();
+    write_header(&mut data, true);
+    write_ifd(&mut data, &[], 0, true);
+
+    let exif = extract_exif_from_bytes(&data).unwrap();
+    assert_eq!(exif, ExifData { exposure_time: None, f_stop: None, iso: None });
+}
+
+#[test]
+fn extract_exif_end_to_end() {
+    let exif_ifd_offset = IFD0_OFFSET + ifd_len(1);
+    let ifd0_entries = vec![entry(EXIF_IFD_POINTER, 4, 1, exif_ifd_offset)];
+    let exif_entries = vec![entry(TAG_ISO, 3, 1, 200)];
+
+    let mut data = Vec::new();
+    write_header(&mut data, true);
+    write_ifd(&mut data, &ifd0_entries, 0, true);
+    write_ifd(&mut data, &exif_entries, 0, true);
+
+    let file = TempFile::new("extract_exif_end_to_end", &data);
+    let exif = extract_exif(&file.path).unwrap();
+    assert_eq!(exif.iso, Some(200));
+    assert_eq!(exif.exposure_time, None);
+    assert_eq!(exif.f_stop, None);
+}
+
+#[test]
+fn extract_exif_missing_file_is_io_error() {
+    let path = std::env::temp_dir().join("hual_test_does_not_exist_exif_12345.tiff");
+    assert!(matches!(extract_exif(&path), Err(TiffError::Io(_))));
+}
