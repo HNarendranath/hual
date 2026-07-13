@@ -1,3 +1,4 @@
+use crate::cache::L2Cache;
 use crate::pipeline::{MetadataRecord, RawFile, WriteJob};
 use crate::thumbnail;
 use crossbeam_channel::{Receiver, Sender};
@@ -9,6 +10,7 @@ pub fn run(
     db_tx: Sender<MetadataRecord>,
     source_dir: &Path,
     dest_dir: &Path,
+    l2_cache: &L2Cache,
 ) {
     for file in rx {
         let ext = file
@@ -27,6 +29,27 @@ pub fn run(
                 None
             }
         };
+
+        let thumb = match thumbnail::extract_thumbnail_from_bytes(&file.bytes, ext) {
+            Ok(exif) => Some(exif),
+            Err(e) => {
+                eprint!(
+                    "thumbnail extraction failed for {}: {e}",
+                    file.src_path.display()
+                );
+                None
+            }
+        };
+
+        if let Some(bytes) = &thumb {
+            let key = file.src_path.to_string_lossy();
+            if let Err(e) = l2_cache.put(&key, bytes) {
+                eprint!(
+                    "thumbnail cache write failed for {}: {e}",
+                    file.src_path.display()
+                );
+            }
+        }
 
         let relative = file
             .src_path

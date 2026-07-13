@@ -58,6 +58,14 @@ pub fn run_import(source_dir: &Path, dest_dir: &Path) {
         }
     };
 
+    let l2_cache = match crate::cache::L2Cache::new(hidden.join("thumbcache")) {
+        Ok(cache) => cache,
+        Err(e) => {
+            eprintln!("Error creating thumbnail cache directory: {e}");
+            return;
+        }
+    };
+
     let (raw_tx, raw_rx) = bounded::<RawFile>(CHANNEL_CAPACITY);
     let (write_tx, write_rx) = bounded::<WriteJob>(CHANNEL_CAPACITY);
     let (db_tx, db_rx) = bounded::<MetadataRecord>(CHANNEL_CAPACITY);
@@ -69,11 +77,15 @@ pub fn run_import(source_dir: &Path, dest_dir: &Path) {
     thread::scope(|s| {
         s.spawn(|| scanner::run(source_dir, raw_tx));
 
+        let l2_cache_ref = &l2_cache;
+
         for _ in 0..worker_count {
             let raw_rx = raw_rx.clone();
             let write_tx = write_tx.clone();
             let db_tx = db_tx.clone();
-            s.spawn(move || worker::run(raw_rx, write_tx, db_tx, source_dir, dest_dir));
+            s.spawn(move || {
+                worker::run(raw_rx, write_tx, db_tx, source_dir, dest_dir, l2_cache_ref)
+            });
         }
 
         drop(write_tx);
@@ -84,6 +96,6 @@ pub fn run_import(source_dir: &Path, dest_dir: &Path) {
     });
 }
 
-// #[cfg(test)]
-// #[path = "../tests/unit/pipeline_tests.rs"]
-// mod pipeline_tests;
+#[cfg(test)]
+#[path = "../tests/unit/pipeline_tests.rs"]
+mod pipeline_tests;
