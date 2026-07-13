@@ -1,10 +1,7 @@
 use std::fmt;
 use std::fs;
-use std::i128::MAX;
 use std::io;
 use std::path::PathBuf;
-
-use image::codecs::jpeg;
 
 const QUALITY: f32 = 80.0;
 const MAX_DIMENSTION: u32 = 256;
@@ -67,7 +64,11 @@ impl L2Cache {
 
     pub fn put(&self, key: &str, jpeg_bytes: &[u8]) -> Result<(), L2CacheError> {
         let img = image::load_from_memory_with_format(jpeg_bytes, image::ImageFormat::Jpeg)?;
-        let thumb = img.thumbnail(MAX_DIMENSTION, MAX_DIMENSTION);
+        let thumb = if img.width() > MAX_DIMENSTION || img.height() > MAX_DIMENSTION {
+            img.thumbnail(MAX_DIMENSTION, MAX_DIMENSTION)
+        } else {
+            img
+        };
         let encoder =
             webp::Encoder::from_image(&thumb).map_err(|e| L2CacheError::Encode(e.to_string()))?;
         let webp_bytes = encoder.encode(QUALITY);
@@ -75,3 +76,7 @@ impl L2Cache {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/l2_tests.rs"]
+mod l2_tests;
