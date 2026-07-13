@@ -4,7 +4,7 @@ use super::*;
 use crate::thumbnail::ExifData;
 use crossbeam_channel::unbounded;
 use std::path::PathBuf;
-use support::{entry, ifd_len, write_header, write_ifd, IFD0_OFFSET};
+use support::{IFD0_OFFSET, entry, ifd_len, write_header, write_ifd};
 
 fn valid_tiff_with_thumbnail() -> Vec<u8> {
     let thumb_bytes = b"\xFF\xD8fake-thumbnail-data\xFF\xD9".to_vec();
@@ -57,12 +57,15 @@ fn successful_extraction_populates_thumbnail_and_exif() {
 
     assert_eq!(jobs.len(), 1);
     assert_eq!(records.len(), 1);
-    assert!(records[0].thumbnail.is_some());
     // no EXIF_IFD_POINTER in this synthetic IFD0, so extraction succeeds
     // (Ok, not Err) but every field is None -- exif is Some(_), not None.
     assert_eq!(
         records[0].exif,
-        Some(ExifData { exposure_time: None, f_stop: None, iso: None })
+        Some(ExifData {
+            exposure_time: None,
+            f_stop: None,
+            iso: None
+        })
     );
 }
 
@@ -80,7 +83,6 @@ fn failed_extraction_still_produces_job_and_record_with_none_fields() {
 
     assert_eq!(jobs.len(), 1);
     assert_eq!(records.len(), 1);
-    assert!(records[0].thumbnail.is_none());
     assert!(records[0].exif.is_none());
     // bytes still get forwarded for copying even though extraction failed
     assert_eq!(jobs[0].bytes, b"not a tiff file at all");
@@ -99,7 +101,6 @@ fn unsupported_extension_still_copies_with_no_metadata() {
     let (jobs, records) = run_worker_on(files, &source_dir, &dest_dir);
 
     assert_eq!(jobs.len(), 1);
-    assert!(records[0].thumbnail.is_none());
     assert!(records[0].exif.is_none());
 }
 
@@ -142,9 +143,18 @@ fn multiple_files_all_get_processed() {
     let dest_dir = PathBuf::from("/dest");
 
     let files = vec![
-        RawFile { src_path: source_dir.join("a.arw"), bytes: valid_tiff_with_thumbnail() },
-        RawFile { src_path: source_dir.join("b.arw"), bytes: b"garbage".to_vec() },
-        RawFile { src_path: source_dir.join("c.txt"), bytes: b"plain text".to_vec() },
+        RawFile {
+            src_path: source_dir.join("a.arw"),
+            bytes: valid_tiff_with_thumbnail(),
+        },
+        RawFile {
+            src_path: source_dir.join("b.arw"),
+            bytes: b"garbage".to_vec(),
+        },
+        RawFile {
+            src_path: source_dir.join("c.txt"),
+            bytes: b"plain text".to_vec(),
+        },
     ];
 
     let (jobs, records) = run_worker_on(files, &source_dir, &dest_dir);

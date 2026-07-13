@@ -26,7 +26,6 @@ fn run_persists_records_with_metadata() {
             f_stop: Some((28, 10)),
             iso: Some(100),
         }),
-        thumbnail: Some(vec![0xFF, 0xD8, 0xFF, 0xD9]),
     })
     .unwrap();
     drop(tx);
@@ -59,7 +58,6 @@ fn run_persists_records_with_no_metadata_as_null() {
         src_path: PathBuf::from("/source/unsupported.txt"),
         dest_path: PathBuf::from("/dest/unsupported.txt"),
         exif: None,
-        thumbnail: None,
     })
     .unwrap();
     drop(tx);
@@ -95,7 +93,6 @@ fn run_replaces_existing_row_on_reimport_of_same_src_path() {
             f_stop: Some((28, 10)),
             iso: Some(100),
         }),
-        thumbnail: None,
     })
     .unwrap();
     drop(tx1);
@@ -111,7 +108,6 @@ fn run_replaces_existing_row_on_reimport_of_same_src_path() {
             f_stop: Some((40, 10)),
             iso: Some(400),
         }),
-        thumbnail: None,
     })
     .unwrap();
     drop(tx2);

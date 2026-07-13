@@ -28,7 +28,6 @@ pub struct MetadataRecord {
     pub src_path: PathBuf,
     pub dest_path: PathBuf,
     pub exif: Option<ExifData>,
-    pub thumbnail: Option<Vec<u8>>,
 }
 
 const CHANNEL_CAPACITY: usize = 32;

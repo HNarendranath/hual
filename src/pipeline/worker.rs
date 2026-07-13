@@ -17,17 +17,6 @@ pub fn run(
             .and_then(|e| e.to_str())
             .unwrap_or("");
 
-        let thumbnail = match thumbnail::extract_thumbnail_from_bytes(&file.bytes, ext) {
-            Ok(bytes) => Some(bytes),
-            Err(e) => {
-                eprintln!(
-                    "thumbnail extraction failed for {}: {e}",
-                    file.src_path.display()
-                );
-                None
-            }
-        };
-
         let exif = match thumbnail::extract_exif_from_bytes(&file.bytes, ext) {
             Ok(exif) => Some(exif),
             Err(e) => {
@@ -53,7 +42,6 @@ pub fn run(
             src_path: file.src_path,
             dest_path: dest,
             exif,
-            thumbnail,
         };
 
         if write_tx.send(write_job).is_err() {
