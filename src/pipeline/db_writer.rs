@@ -1,7 +1,6 @@
 use crate::pipeline::MetadataRecord;
 use crossbeam_channel::Receiver;
 use rusqlite::{Connection, params};
-use std::io;
 use std::path::Path;
 
 fn init_schema(conn: &Connection) -> rusqlite::Result<()> {
