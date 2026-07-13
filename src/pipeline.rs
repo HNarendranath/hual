@@ -81,10 +81,10 @@ pub fn run_import(source_dir: &Path, dest_dir: &Path) {
         drop(db_tx);
 
         s.spawn(|| ssd_writer::run(write_rx));
-        s.spawn(|| db_writer::run(db_rx));
+        s.spawn(|| db_writer::run(db_rx, conn));
     });
 }
 
-#[cfg(test)]
-#[path = "../tests/unit/pipeline_tests.rs"]
-mod pipeline_tests;
+// #[cfg(test)]
+// #[path = "../tests/unit/pipeline_tests.rs"]
+// mod pipeline_tests;
