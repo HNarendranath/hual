@@ -1,4 +1,5 @@
 mod cache;
+mod hual_dir;
 mod pipeline;
 mod thumbnail;
 

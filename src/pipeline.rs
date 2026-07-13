@@ -4,6 +4,7 @@ mod ssd_writer;
 mod worker;
 
 // use crate::pipeline::{MetadataRecord, RawFile, WriteJob};
+use crate::hual_dir;
 use crate::thumbnail::ExifData;
 use crossbeam_channel::bounded;
 use std::path::Path;
@@ -33,6 +34,31 @@ pub struct MetadataRecord {
 const CHANNEL_CAPACITY: usize = 32;
 
 pub fn run_import(source_dir: &Path, dest_dir: &Path) {
+    // ensure dest_dir before making hidden folder
+    if let Err(e) = std::fs::create_dir_all(dest_dir) {
+        eprintln!(
+            "Error creating destination directory {}: {e}",
+            dest_dir.display()
+        );
+        return;
+    }
+
+    // .hual folder
+    let hidden = dest_dir.join(".hual");
+    if let Err(e) = hual_dir::ensure(&hidden) {
+        eprintln!("Error creating {}: {e}", hidden.display());
+        return;
+    }
+
+    let db_path = hidden.join("hual.db");
+    let conn = match db_writer::open_db(&db_path) {
+        Ok(conn) => conn,
+        Err(e) => {
+            eprintln!("Error opening database {}: {e}", db_path.display());
+            return;
+        }
+    };
+
     let (raw_tx, raw_rx) = bounded::<RawFile>(CHANNEL_CAPACITY);
     let (write_tx, write_rx) = bounded::<WriteJob>(CHANNEL_CAPACITY);
     let (db_tx, db_rx) = bounded::<MetadataRecord>(CHANNEL_CAPACITY);
