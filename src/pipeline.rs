@@ -4,7 +4,7 @@ mod ssd_writer;
 mod worker;
 
 // use crate::pipeline::{MetadataRecord, RawFile, WriteJob};
-use crate::hual_dir;
+use crate::hidden_dir;
 use crate::thumbnail::ExifData;
 use crossbeam_channel::bounded;
 use std::path::Path;
@@ -44,7 +44,7 @@ pub fn run_import(source_dir: &Path, dest_dir: &Path) {
 
     // .hual folder
     let hidden = dest_dir.join(".hual");
-    if let Err(e) = hual_dir::ensure(&hidden) {
+    if let Err(e) = hidden_dir::ensure(&hidden) {
         eprintln!("Error creating {}: {e}", hidden.display());
         return;
     }

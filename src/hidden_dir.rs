@@ -21,7 +21,7 @@ fn hide(_path: &Path) -> io::Result<()> {
 }
 
 pub fn ensure(root: &Path) -> io::Result<PathBuf> {
-    let dir = root.join(".hual");
+    let dir = root.to_path_buf();
     std::fs::create_dir_all(&dir)?;
     hide(&dir)?;
     Ok(dir)
