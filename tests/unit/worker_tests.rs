@@ -6,9 +6,7 @@ use crossbeam_channel::unbounded;
 use std::path::PathBuf;
 use support::{IFD0_OFFSET, TempDir, entry, ifd_len, tiny_jpeg, write_header, write_ifd};
 
-fn valid_tiff_with_thumbnail() -> Vec<u8> {
-    let thumb_bytes = tiny_jpeg(4, 4, [200, 50, 50]);
-
+fn tiff_with_embedded_thumbnail(thumb_bytes: Vec<u8>) -> Vec<u8> {
     let ifd1_offset = IFD0_OFFSET + ifd_len(0);
     let thumb_offset = ifd1_offset + ifd_len(2);
     let ifd1_entries = vec![
@@ -22,6 +20,10 @@ fn valid_tiff_with_thumbnail() -> Vec<u8> {
     write_ifd(&mut data, &ifd1_entries, 0, true);
     data.extend_from_slice(&thumb_bytes);
     data
+}
+
+fn valid_tiff_with_thumbnail() -> Vec<u8> {
+    tiff_with_embedded_thumbnail(tiny_jpeg(4, 4, [200, 50, 50]))
 }
 
 fn run_worker_on(
@@ -118,6 +120,35 @@ fn unsupported_extension_still_copies_with_no_metadata() {
     assert!(records[0].exif.is_none());
     let key = source_dir.join("readme.txt").to_string_lossy().into_owned();
     assert!(l2_cache.get(&key).is_none());
+}
+
+#[test]
+fn thumbnail_extraction_succeeds_but_undecodable_bytes_dont_abort_record() {
+    let source_dir = PathBuf::from("/source");
+    let dest_dir = PathBuf::from("/dest");
+    let cache_dir = TempDir::new("worker_cache_put_failure");
+    let l2_cache = L2Cache::new(cache_dir.path.clone()).unwrap();
+
+    // Bytes sit at the right TIFF offset/length, so extraction itself
+    // succeeds, but they aren't a real JPEG -- L2Cache::put's decode step
+    // will fail. The job/record should still be produced normally; only the
+    // cache write is skipped.
+    let data = tiff_with_embedded_thumbnail(b"\xFF\xD8fake-thumbnail-data\xFF\xD9".to_vec());
+
+    let files = vec![RawFile {
+        src_path: source_dir.join("photo.arw"),
+        bytes: data,
+    }];
+
+    let (jobs, records) = run_worker_on(files, &source_dir, &dest_dir, &l2_cache);
+
+    assert_eq!(jobs.len(), 1);
+    assert_eq!(records.len(), 1);
+    let key = source_dir.join("photo.arw").to_string_lossy().into_owned();
+    assert!(
+        l2_cache.get(&key).is_none(),
+        "undecodable bytes should not produce a cache entry"
+    );
 }
 
 #[test]

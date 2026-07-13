@@ -100,6 +100,36 @@ fn put_downscales_images_larger_than_max_dimension() {
 }
 
 #[test]
+fn concurrent_puts_to_distinct_keys_all_land_correctly() {
+    // L2Cache holds no mutable state (just a root PathBuf), so it's designed
+    // to be shared as &L2Cache across all worker threads at once -- this
+    // proves that concurrent puts to distinct keys don't corrupt or drop
+    // entries, matching how it's actually used in the import pipeline.
+    let dir = TempDir::new("l2_concurrent");
+    let cache = L2Cache::new(dir.path.clone()).unwrap();
+    const N: u8 = 8;
+
+    std::thread::scope(|s| {
+        for i in 0..N {
+            let cache = &cache;
+            s.spawn(move || {
+                let jpeg = tiny_jpeg(4, 4, [i, i, i]);
+                cache.put(&format!("photo-{i}"), &jpeg).unwrap();
+            });
+        }
+    });
+
+    for i in 0..N {
+        assert!(
+            cache.get(&format!("photo-{i}")).is_some(),
+            "entry {i} should exist"
+        );
+    }
+    let entries = std::fs::read_dir(&dir.path).unwrap().count();
+    assert_eq!(entries, N as usize);
+}
+
+#[test]
 fn put_does_not_upscale_images_smaller_than_max_dimension() {
     let dir = TempDir::new("l2_no_upscale");
     let cache = L2Cache::new(dir.path.clone()).unwrap();
