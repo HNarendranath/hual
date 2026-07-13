@@ -8,6 +8,8 @@ memmap2 = "0.9"
 byteorder = "1.5"
 crossbeam-channel = "0.5"
 rusqlite = { version = "0.32", features = ["bundled"] }
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
+webp = "0.3"
 
 [profile.release]
 opt-level = 3
