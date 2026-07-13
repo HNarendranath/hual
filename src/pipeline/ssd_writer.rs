@@ -18,3 +18,7 @@ pub fn run(rx: Receiver<WriteJob>) {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/ssd_writer_tests.rs"]
+mod ssd_writer_tests;

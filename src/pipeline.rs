@@ -58,3 +58,7 @@ pub fn run_import(source_dir: &Path, dest_dir: &Path) {
         s.spawn(|| db_writer::run(db_rx));
     });
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/pipeline_tests.rs"]
+mod pipeline_tests;

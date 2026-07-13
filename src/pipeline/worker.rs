@@ -62,3 +62,7 @@ pub fn run(
         let _ = db_tx.send(record);
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/worker_tests.rs"]
+mod worker_tests;

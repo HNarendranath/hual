@@ -82,3 +82,32 @@ impl Drop for TempFile {
         let _ = std::fs::remove_file(&self.path);
     }
 }
+
+pub struct TempDir {
+    pub path: PathBuf,
+}
+
+impl TempDir {
+    pub fn new(name: &str) -> Self {
+        let path = std::env::temp_dir().join(format!("hual_test_{name}_{}", std::process::id()));
+        std::fs::create_dir_all(&path).expect("create temp fixture dir");
+        Self { path }
+    }
+
+    /// Writes `data` to `relative` inside this temp dir, creating any parent
+    /// subdirectories needed, and returns the full path written to.
+    pub fn write_file(&self, relative: &str, data: &[u8]) -> PathBuf {
+        let path = self.path.join(relative);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).expect("create nested fixture dir");
+        }
+        std::fs::write(&path, data).expect("write nested fixture file");
+        path
+    }
+}
+
+impl Drop for TempDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.path);
+    }
+}

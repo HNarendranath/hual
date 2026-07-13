@@ -70,3 +70,7 @@ fn scan_dir(dir: &Path, tx: &Sender<RawFile>) {
 pub fn run(source_dir: &Path, tx: Sender<RawFile>) {
     scan_dir(source_dir, &tx);
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/scanner_tests.rs"]
+mod scanner_tests;

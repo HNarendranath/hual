@@ -25,3 +25,7 @@ pub fn run(rx: Receiver<MetadataRecord>) {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/db_writer_tests.rs"]
+mod db_writer_tests;
