@@ -65,6 +65,15 @@ pub fn write_ftyp(buf: &mut Vec<u8>, major_brand: &[u8; 4]) {
     write_box(buf, b"ftyp", &payload);
 }
 
+pub fn tiny_jpeg(width: u32, height: u32, fill: [u8; 3]) -> Vec<u8> {
+    let img = image::RgbImage::from_fn(width, height, |_, _| image::Rgb(fill));
+    let mut buf = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new(&mut buf)
+        .encode_image(&img)
+        .expect("encode synthetic jpeg fixture");
+    buf
+}
+
 pub struct TempFile {
     pub path: PathBuf,
 }
