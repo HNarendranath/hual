@@ -3,6 +3,8 @@ mod scanner;
 mod ssd_writer;
 mod worker;
 
+pub use db_writer::{PhotoRow, list_photos, open_db};
+
 // use crate::pipeline::{MetadataRecord, RawFile, WriteJob};
 use crate::hidden_dir;
 use crate::thumbnail::ExifData;

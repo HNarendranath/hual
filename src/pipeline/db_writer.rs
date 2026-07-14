@@ -57,7 +57,7 @@ pub fn run(rx: Receiver<MetadataRecord>, conn: Connection) {
 }
 
 #[derive(serde::Serialize)]
-struct PhotoRow {
+pub struct PhotoRow {
     src_path: String,
     dest_path: String,
     exposure_time: Option<f64>,
