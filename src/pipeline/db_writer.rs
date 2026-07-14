@@ -57,6 +57,7 @@ pub fn run(rx: Receiver<MetadataRecord>, conn: Connection) {
 }
 
 #[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PhotoRow {
     src_path: String,
     dest_path: String,
@@ -66,7 +67,8 @@ pub struct PhotoRow {
 }
 
 pub fn list_photos(conn: &Connection) -> rusqlite::Result<Vec<PhotoRow>> {
-    let mut stmt = conn.prepare("SELECT * FROM photos")?;
+    let mut stmt =
+        conn.prepare("SELECT src_path, dest_path, exposure_time, f_stop, iso FROM photos")?;
     let rows = stmt.query_map([], |row| {
         Ok(PhotoRow {
             src_path: row.get(0)?,

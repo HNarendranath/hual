@@ -1,12 +1,19 @@
+use hual::cache::L2Cache;
 use hual::pipeline;
 use hual::pipeline::{list_photos as list_photos_hual, open_db, PhotoRow};
 use hual::thumbnail;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command]
-pub fn get_thumbnail(path: String) -> Result<Vec<u8>, String> {
+pub fn get_preview(path: String) -> Result<Vec<u8>, String> {
     thumbnail::extract_thumbnail(Path::new(&path)).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_webp(cache_dir: String, src: String) -> Option<Vec<u8>> {
+    let cache = L2Cache::new(PathBuf::from(&cache_dir)).ok()?;
+    cache.get(&src)
 }
 
 #[tauri::command]

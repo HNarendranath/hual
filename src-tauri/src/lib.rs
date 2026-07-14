@@ -16,9 +16,10 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::list_photos,
-            commands::get_thumbnail,
+            commands::get_preview,
             commands::import_photos,
             commands::pick_dir,
+            commands::get_webp,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
