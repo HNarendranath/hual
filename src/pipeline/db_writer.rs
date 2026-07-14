@@ -56,6 +56,30 @@ pub fn run(rx: Receiver<MetadataRecord>, conn: Connection) {
     }
 }
 
+#[derive(serde::Serialize)]
+struct PhotoRow {
+    src_path: String,
+    dest_path: String,
+    exposure_time: Option<f64>,
+    f_stop: Option<f64>,
+    iso: Option<u16>,
+}
+
+pub fn list_photos(conn: &Connection) -> rusqlite::Result<Vec<PhotoRow>> {
+    let mut stmt = conn.prepare("SELECT * FROM photos")?;
+    let rows = stmt.query_map([], |row| {
+        Ok(PhotoRow {
+            src_path: row.get(0)?,
+            dest_path: row.get(1)?,
+            exposure_time: row.get(2)?,
+            f_stop: row.get(3)?,
+            iso: row.get(4)?,
+        })
+    })?;
+
+    rows.collect()
+}
+
 #[cfg(test)]
 #[path = "../../tests/unit/db_writer_tests.rs"]
 mod db_writer_tests;

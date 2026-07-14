@@ -1348,6 +1348,8 @@ dependencies = [
  "image",
  "memmap2",
  "rusqlite",
+ "serde",
+ "serde_json",
  "webp",
  "windows-sys 0.52.0",
 ]

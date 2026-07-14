@@ -277,7 +277,7 @@ const TAG_EXPOSURE_TIME: u16 = 0x829A; // RATIONAL — shutter speed
 const TAG_F_STOP: u16 = 0x829D; // RATIONAL — aperture
 const TAG_ISO: u16 = 0x8827; // SHORT — ISO
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
 pub struct ExifData {
     pub exposure_time: Option<(u32, u32)>,
     pub f_stop: Option<(u32, u32)>,
