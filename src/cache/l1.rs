@@ -12,7 +12,7 @@ struct Node<K, V> {
 const HEAD: usize = 0;
 const TAIL: usize = 1;
 
-struct LRUCache<K, V> {
+pub struct LRUCache<K, V> {
     capacity: usize,
     nodes: Vec<Node<K, V>>,
     map: HashMap<K, usize>,

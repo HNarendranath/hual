@@ -1,13 +1,24 @@
-use hual::cache::L2Cache;
+use hual::cache::{L2Cache, LRUCache};
 use hual::pipeline;
 use hual::pipeline::{list_photos as list_photos_hual, open_db, PhotoRow};
 use hual::thumbnail;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+use tauri::State;
 use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command]
-pub fn get_preview(path: String) -> Result<Vec<u8>, String> {
-    thumbnail::extract_thumbnail(Path::new(&path)).map_err(|e| e.to_string())
+pub fn get_preview(
+    path: String,
+    l1: State<Mutex<LRUCache<String, Vec<u8>>>>,
+) -> Result<Vec<u8>, String> {
+    if let Some(bytes) = l1.lock().unwrap().get(&path) {
+        return Ok(bytes.clone());
+    }
+
+    let bytes = thumbnail::extract_thumbnail(Path::new(&path)).map_err(|e| e.to_string())?;
+    l1.lock().unwrap().put(path, bytes.clone());
+    Ok(bytes)
 }
 
 #[tauri::command]
