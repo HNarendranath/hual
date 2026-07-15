@@ -60,7 +60,6 @@ export function useVirtualGrid({ itemCount, tileSize, gap, overscanRows = 2 }: O
     const startRow = Math.max(0, Math.floor(scrollTop/rowHeight) - overscanRows);
     const visibleRowCount = Math.ceil(containerSize.height / rowHeight) + overscanRows*2;
     const endRow = Math.min(totalRows, startRow + visibleRowCount);
-    console.log('containerSize:', containerSize, 'columns:', columns);
     return {
         containerRef,
         columns,
