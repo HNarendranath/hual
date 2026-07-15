@@ -12,8 +12,8 @@ export async function listPhotos(dbPath: string): Promise<Photo[]> {
     return await invoke<Photo[]>('list_photos', { dbPath });
 }
 
-export async function pickDir(path: string) : Promise<string | null>  {
-    return await invoke<string | null>('pick_dir', { path })    
+export async function pickDir() : Promise<string | null>  {
+    return await invoke<string | null>('pick_dir');
 }
 
 export async function getCachedThumbnail(cacheDir: string, src: string): Promise<Uint8Array<ArrayBuffer> | null> {
