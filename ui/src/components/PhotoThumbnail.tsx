@@ -4,9 +4,10 @@ import { getCachedThumbnail, Photo } from "../lib/ipc";
 interface Props {
     photo: Photo;
     thumbcacheDir: string;
+    onClick?: () => void;
 }
 
-export function PhotoThumbnail({ photo, thumbcacheDir}: Props) {
+export function PhotoThumbnail({ photo, thumbcacheDir, onClick}: Props) {
     const [url, setUrl] = useState<string | null>(null);
 
     useEffect(() => {
@@ -31,5 +32,5 @@ export function PhotoThumbnail({ photo, thumbcacheDir}: Props) {
         return <div className="thumbnail thumbnail-placeholder" />;
     }
 
-    return <img src={url} alt={photo.srcPath} className="thumbnail" />;    
+    return <img src={url} alt={photo.srcPath} className="thumbnail" onClick={onClick} />;    
 }

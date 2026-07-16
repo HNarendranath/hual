@@ -69,5 +69,4 @@ export function useVirtualGrid({ itemCount, tileSize, gap, overscanRows = 2 }: O
         offsetY: startRow*rowHeight,
         direction,
     };
-
 }

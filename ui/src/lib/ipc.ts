@@ -21,7 +21,7 @@ export async function getCachedThumbnail(cacheDir: string, src: string): Promise
     return bytes ? new Uint8Array(bytes): null;
 }
 
-export async function getFullThumbnail(path: string): Promise<Uint8Array> {
+export async function getFullThumbnail(path: string): Promise<Uint8Array<ArrayBuffer>> {
     const bytes = await invoke<number[]>('get_preview', { path });
     return new Uint8Array(bytes);
 }

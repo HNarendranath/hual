@@ -1,6 +1,9 @@
 import { usePhotos } from '../hooks/usePhotos';
 import { PhotoThumbnail } from './PhotoThumbnail';
 import { useVirtualGrid } from '../hooks/useVirtualGrid';
+import { useState } from 'react';
+import { Lightbox } from './Lightbox';
+import { Photo } from '../lib/ipc';
 
 const TILE_SIZE = 160;
 const GAP = 8;
@@ -17,10 +20,12 @@ export function PhotoGrid({ dbPath, thumbcacheDir }: Props) {
         tileSize: TILE_SIZE,
         gap: GAP,
     });
+    const [selected, setSelected] = useState<Photo | null>(null);
 
     const visiblePhotos = photos.slice(startIndex, endIndex);
 
     return (
+        <>
         <div ref={containerRef} className="photo-grid-viewport">
             {loading && <p>Loading...</p>}
             {error && <p>Error: {error}</p>}
@@ -38,11 +43,18 @@ export function PhotoGrid({ dbPath, thumbcacheDir }: Props) {
                     }}
                 >
                     {visiblePhotos.map((photo) => (
-                        <PhotoThumbnail key={photo.srcPath} photo={photo} thumbcacheDir={thumbcacheDir}/>
+                        <PhotoThumbnail 
+                            key={photo.srcPath} 
+                            photo={photo} 
+                            thumbcacheDir={thumbcacheDir}
+                            onClick={() => setSelected(photo)}
+                        />
                     ))}
                 </div>
             </div>
             )}
         </div>
+        {selected && <Lightbox src={selected.srcPath} onClose={() => setSelected(null)} />}
+        </>
     );
 }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { pickDir, importPhotos } from '../lib/ipc.ts';
+import { pickDir, importPhotos } from '../lib/ipc';
 
 interface Props {
     onImportComplete: (destDir: string) => void;
