@@ -13,11 +13,17 @@ pub fn get_preview(
     l1: State<Mutex<LRUCache<String, Vec<u8>>>>,
 ) -> Result<Vec<u8>, String> {
     if let Some(bytes) = l1.lock().unwrap().get(&path) {
+        log::info!("L1 hit: {path}");
         return Ok(bytes.clone());
     }
+    log::info!("L1 miss: {path}");
 
     let bytes = thumbnail::extract_thumbnail(Path::new(&path)).map_err(|e| e.to_string())?;
-    l1.lock().unwrap().put(path, bytes.clone());
+    l1.lock().unwrap().put(path.clone(), bytes.clone());
+    log::info!(
+        "L1 populated: {path} ({} entries)",
+        l1.lock().unwrap().len()
+    );
     Ok(bytes)
 }
 

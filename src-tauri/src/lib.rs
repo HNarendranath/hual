@@ -3,7 +3,7 @@ use std::sync::Mutex;
 
 mod commands;
 
-const L1_CAPACITY: usize = 200;
+const L1_CAPACITY: usize = 40;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

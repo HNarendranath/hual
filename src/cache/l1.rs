@@ -20,6 +20,10 @@ pub struct LRUCache<K, V> {
 }
 
 impl<K: Eq + Hash + Clone, V> LRUCache<K, V> {
+    pub fn len(&self) -> usize {
+        self.map.len()
+    }
+
     pub fn new(capacity: usize) -> Self {
         assert!(capacity > 0, "LRU capacity must be greater than 0");
 
