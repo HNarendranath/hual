@@ -1,6 +1,6 @@
 use hual::cache::{L2Cache, LRUCache};
 use hual::pipeline;
-use hual::pipeline::{list_photos as list_photos_hual, open_db, PhotoRow};
+use hual::pipeline::{list_photos as list_photos_hual, open_db, PhotoFilters, PhotoRow};
 use hual::thumbnail;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -34,9 +34,9 @@ pub fn get_webp(cache_dir: String, src: String) -> Option<Vec<u8>> {
 }
 
 #[tauri::command]
-pub fn list_photos(db_path: String) -> Result<Vec<PhotoRow>, String> {
+pub fn list_photos(db_path: String, filters: PhotoFilters) -> Result<Vec<PhotoRow>, String> {
     let conn = open_db(Path::new(&db_path)).map_err(|e| e.to_string())?;
-    list_photos_hual(&conn).map_err(|e| e.to_string())
+    list_photos_hual(&conn, &filters).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

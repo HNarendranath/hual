@@ -8,8 +8,25 @@ export interface Photo {
     iso: number | null;
 }
 
-export async function listPhotos(dbPath: string): Promise<Photo[]> {
-    return await invoke<Photo[]>('list_photos', { dbPath });
+export interface RangeFilter {
+    min: number | null;
+    max: number | null;
+}
+
+export interface PhotoFilters {
+    iso: RangeFilter;
+    fStop: RangeFilter;
+    exposureTime: RangeFilter;
+}
+
+export const EMPTY_FILTERS: PhotoFilters = {
+    iso: { min: null, max: null },
+    fStop: { min: null, max: null },
+    exposureTime: { min: null, max: null },
+};
+
+export async function listPhotos(dbPath: string, filters: PhotoFilters): Promise<Photo[]> {
+    return await invoke<Photo[]>('list_photos', { dbPath, filters });
 }
 
 export async function pickDir() : Promise<string | null>  {
