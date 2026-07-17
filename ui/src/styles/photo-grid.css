@@ -3,8 +3,16 @@
     padding: 8px;
 }
 
-.photo-grid-viewport {
+.photo-grid-page {
+    display: flex;
+    flex-direction: column;
     height: 100vh;
+}
+
+.photo-grid-viewport {
+    flex: 1;
+    min-height: 0;
+    /* required: without this, flex children default to min-height: auto and refuse to shrink below their content size, breaking the internal scroll */
     overflow-y: auto;
 }
 
