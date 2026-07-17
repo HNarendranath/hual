@@ -66,10 +66,73 @@ pub struct PhotoRow {
     iso: Option<u16>,
 }
 
-pub fn list_photos(conn: &Connection) -> rusqlite::Result<Vec<PhotoRow>> {
-    let mut stmt =
-        conn.prepare("SELECT src_path, dest_path, exposure_time, f_stop, iso FROM photos")?;
-    let rows = stmt.query_map([], |row| {
+#[derive(Debug, Clone, Copy, serde::Deserialize)]
+pub struct RangeFilter<T> {
+    pub min: Option<T>,
+    pub max: Option<T>,
+}
+
+impl<T> Default for RangeFilter<T> {
+    fn default() -> Self {
+        RangeFilter {
+            min: None,
+            max: None,
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PhotoFilters {
+    #[serde(default)]
+    pub iso: RangeFilter<u16>,
+    #[serde(default)]
+    pub f_stop: RangeFilter<f64>,
+    #[serde(default)]
+    pub exposure_time: RangeFilter<f64>,
+}
+
+pub fn list_photos(conn: &Connection, filters: &PhotoFilters) -> rusqlite::Result<Vec<PhotoRow>> {
+    let mut clauses: Vec<String> = Vec::new();
+    let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+    let mut push = |col: &str, op: &str, val: Box<dyn rusqlite::ToSql>| {
+        clauses.push(format!("{} {} ?{}", col, op, params.len() + 1));
+        params.push(val);
+    };
+
+    if let Some(v) = filters.iso.min {
+        push("iso", ">=", Box::new(v));
+    }
+    if let Some(v) = filters.iso.max {
+        push("iso", "<=", Box::new(v));
+    }
+    if let Some(v) = filters.f_stop.min {
+        push("f_stop", ">=", Box::new(v));
+    }
+    if let Some(v) = filters.f_stop.max {
+        push("f_stop", "<=", Box::new(v));
+    }
+    if let Some(v) = filters.exposure_time.min {
+        push("exposure_time", ">=", Box::new(v));
+    }
+    if let Some(v) = filters.exposure_time.max {
+        push("exposure_time", "<=", Box::new(v));
+    }
+
+    let where_clause = if clauses.is_empty() {
+        String::new()
+    } else {
+        format!("WHERE {}", clauses.join(" AND "))
+    };
+
+    let sql = format!(
+        "SELECT src_path, dest_path, exposure_time, f_stop, iso FROM photos {where_clause}"
+    );
+
+    let mut stmt = conn.prepare(&sql)?;
+    let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+    let rows = stmt.query_map(param_refs.as_slice(), |row| {
         Ok(PhotoRow {
             src_path: row.get(0)?,
             dest_path: row.get(1)?,
