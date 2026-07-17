@@ -1,0 +1,31 @@
+.import-progress {
+    margin-top: 12px;
+}
+
+.progress-bar {
+    position: relative;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--accent-bg);
+    overflow: hidden;
+}
+
+.import-progress-bar-indeterminate::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: 40%;
+    background: var(--accent);
+    border-radius: 2px;
+    animation: import-progress-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes import-progress-slide {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(250%);
+    }
+}

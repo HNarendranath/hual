@@ -4,8 +4,16 @@ use hual::pipeline::{list_photos as list_photos_hual, open_db, PhotoFilters, Pho
 use hual::thumbnail;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tauri::State;
+use std::time::{Duration, Instant};
+use tauri::{Emitter, State};
 use tauri_plugin_dialog::DialogExt;
+
+const PROGRESS_EMIT_INTERVAL: Duration = Duration::from_millis(100);
+
+#[derive(Clone, serde::Serialize)]
+struct ImportProgress {
+    count: usize,
+}
 
 #[tauri::command]
 pub fn get_preview(
@@ -40,11 +48,20 @@ pub fn list_photos(db_path: String, filters: PhotoFilters) -> Result<Vec<PhotoRo
 }
 
 #[tauri::command]
-pub fn import_photos(src: String, dest: String) -> Result<(), String> {
+pub fn import_photos(app: tauri::AppHandle, src: String, dest: String) -> Result<(), String> {
     let src_dir = Path::new(&src);
     let dest_dir = Path::new(&dest);
 
-    pipeline::run_import(src_dir, dest_dir);
+    let last_emit = Mutex::new(Instant::now() - PROGRESS_EMIT_INTERVAL);
+    let on_progress = move |count: usize| {
+        let mut last = last_emit.lock().unwrap();
+        if last.elapsed() >= PROGRESS_EMIT_INTERVAL {
+            *last = Instant::now();
+            let _ = app.emit("import_progress", ImportProgress { count });
+        }
+    };
+
+    pipeline::run_import(src_dir, dest_dir, on_progress);
     Ok(()) // TODO: handle errors form run_import
 }
 

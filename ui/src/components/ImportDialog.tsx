@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { pickDir, importPhotos } from '../lib/ipc';
+import { useImportProgress } from '../hooks/useImportProgress';
 
 interface Props {
     onImportComplete: (destDir: string) => void;
@@ -10,6 +11,7 @@ export function ImportDialog({ onImportComplete }: Props) {
     const [dest, setDest] = useState<string | null>(null);
     const [importing, setImporting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const importedCount = useImportProgress();
 
     const handlePickSource = async () => {
         const dir = await pickDir();
@@ -47,6 +49,12 @@ export function ImportDialog({ onImportComplete }: Props) {
             <button onClick={handleImport} disabled={!source || !dest || importing}>
                 {importing ? 'Importing...' : 'Import'}
             </button>
+            {importing && (
+                <div className="import-progress">
+                    <div className="progress-bar" />
+                    <p>Imported {importedCount} photos</p>
+                </div>
+            )}
             {error && <p className="error">{error}</p>}
         </div>
     );

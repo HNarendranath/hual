@@ -19,6 +19,10 @@ export interface PhotoFilters {
     exposureTime: RangeFilter;
 }
 
+export interface ImportProgress {
+    count: number;
+}
+
 export const EMPTY_FILTERS: PhotoFilters = {
     iso: { min: null, max: null },
     fStop: { min: null, max: null },
