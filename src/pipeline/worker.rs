@@ -3,6 +3,7 @@ use crate::pipeline::{MetadataRecord, RawFile, WriteJob};
 use crate::thumbnail;
 use crossbeam_channel::{Receiver, Sender};
 use std::path::Path;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub fn run(
     rx: Receiver<RawFile>,
@@ -11,6 +12,8 @@ pub fn run(
     source_dir: &Path,
     dest_dir: &Path,
     l2_cache: &L2Cache,
+    counter: &AtomicUsize,
+    on_progress: &(dyn Fn(usize) + Sync),
 ) {
     for file in rx {
         let ext = file
@@ -71,6 +74,9 @@ pub fn run(
             continue;
         }
         let _ = db_tx.send(record);
+
+        let count = counter.fetch_add(1, Ordering::Relaxed) + 1;
+        on_progress(count);
     }
 }
 

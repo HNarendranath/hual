@@ -11,6 +11,7 @@ use crate::thumbnail::ExifData;
 use crossbeam_channel::bounded;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::atomic::AtomicUsize;
 use std::thread;
 
 // disk read -> worker
@@ -34,7 +35,7 @@ pub struct MetadataRecord {
 
 const CHANNEL_CAPACITY: usize = 32;
 
-pub fn run_import(source_dir: &Path, dest_dir: &Path) {
+pub fn run_import(source_dir: &Path, dest_dir: &Path, on_progress: impl Fn(usize) + Sync) {
     // ensure dest_dir before making hidden folder
     if let Err(e) = std::fs::create_dir_all(dest_dir) {
         eprintln!(
@@ -76,17 +77,30 @@ pub fn run_import(source_dir: &Path, dest_dir: &Path) {
         .map(|n| n.get())
         .unwrap_or(1);
 
+    let counter = AtomicUsize::new(0);
+    let on_progress: &(dyn Fn(usize) + Sync) = &on_progress;
+
     thread::scope(|s| {
         s.spawn(|| scanner::run(source_dir, raw_tx));
 
         let l2_cache_ref = &l2_cache;
+        let counter_ref = &counter;
 
         for _ in 0..worker_count {
             let raw_rx = raw_rx.clone();
             let write_tx = write_tx.clone();
             let db_tx = db_tx.clone();
             s.spawn(move || {
-                worker::run(raw_rx, write_tx, db_tx, source_dir, dest_dir, l2_cache_ref)
+                worker::run(
+                    raw_rx,
+                    write_tx,
+                    db_tx,
+                    source_dir,
+                    dest_dir,
+                    l2_cache_ref,
+                    counter_ref,
+                    on_progress,
+                );
             });
         }
 

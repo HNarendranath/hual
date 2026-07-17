@@ -4,6 +4,7 @@ use super::*;
 use crate::thumbnail::ExifData;
 use crossbeam_channel::unbounded;
 use std::path::PathBuf;
+use std::sync::atomic::AtomicUsize;
 use support::{IFD0_OFFSET, TempDir, entry, ifd_len, tiny_jpeg, write_header, write_ifd};
 
 fn tiff_with_embedded_thumbnail(thumb_bytes: Vec<u8>) -> Vec<u8> {
@@ -41,7 +42,18 @@ fn run_worker_on(
     }
     drop(raw_tx);
 
-    run(raw_rx, write_tx, db_tx, source_dir, dest_dir, l2_cache);
+    let counter = AtomicUsize::new(0);
+
+    run(
+        raw_rx,
+        write_tx,
+        db_tx,
+        source_dir,
+        dest_dir,
+        l2_cache,
+        &counter,
+        &|_| {},
+    );
 
     (write_rx.iter().collect(), db_rx.iter().collect())
 }

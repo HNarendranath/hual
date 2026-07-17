@@ -1,7 +1,7 @@
 mod support;
 
 use super::*;
-use support::{entry, ifd_len, tiny_jpeg, write_header, write_ifd, TempDir, IFD0_OFFSET};
+use support::{IFD0_OFFSET, TempDir, entry, ifd_len, tiny_jpeg, write_header, write_ifd};
 
 fn synthetic_tiff() -> Vec<u8> {
     let mut data = Vec::new();
@@ -38,10 +38,13 @@ fn run_import_preserves_relative_structure_and_copies_bytes() {
     source.write_file("a.arw", &a);
     source.write_file("sub/b.arw", &b);
 
-    run_import(&source.path, &dest.path);
+    run_import(&source.path, &dest.path, |_| {});
 
     assert_eq!(std::fs::read(dest.path.join("a.arw")).unwrap(), a);
-    assert_eq!(std::fs::read(dest.path.join("sub").join("b.arw")).unwrap(), b);
+    assert_eq!(
+        std::fs::read(dest.path.join("sub").join("b.arw")).unwrap(),
+        b
+    );
 }
 
 #[test]
@@ -51,9 +54,12 @@ fn run_import_copies_unsupported_files_too() {
 
     source.write_file("notes.txt", b"just some notes");
 
-    run_import(&source.path, &dest.path);
+    run_import(&source.path, &dest.path, |_| {});
 
-    assert_eq!(std::fs::read(dest.path.join("notes.txt")).unwrap(), b"just some notes");
+    assert_eq!(
+        std::fs::read(dest.path.join("notes.txt")).unwrap(),
+        b"just some notes"
+    );
 }
 
 #[test]
@@ -63,7 +69,7 @@ fn run_import_populates_l2_thumbnail_cache() {
 
     source.write_file("photo.arw", &synthetic_tiff_with_thumbnail());
 
-    run_import(&source.path, &dest.path);
+    run_import(&source.path, &dest.path, |_| {});
 
     let thumbcache_dir = dest.path.join(".hual").join("thumbcache");
     let entries: Vec<_> = std::fs::read_dir(&thumbcache_dir)
@@ -79,7 +85,7 @@ fn run_import_on_empty_source_dir_does_nothing_and_does_not_hang() {
     let source = TempDir::new("pipeline_import_empty_source");
     let dest = TempDir::new("pipeline_import_empty_dest");
 
-    run_import(&source.path, &dest.path);
+    run_import(&source.path, &dest.path, |_| {});
     // nothing to assert beyond "this returned" -- proves the whole
     // scanner -> worker -> writer -> db_writer shutdown chain completes
     // cleanly even when zero files ever flow through it.
