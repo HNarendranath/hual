@@ -50,6 +50,6 @@ export async function getFullThumbnail(path: string): Promise<Uint8Array<ArrayBu
     return new Uint8Array(bytes);
 }
 
-export async function importPhotos(src: string, dest: string | null): Promise<void> {
-    await invoke<void>('import_photos', { src, dest });
+export async function importPhotos(src: string, dest: string | null, rawOnly: boolean): Promise<void> {
+    await invoke<void>('import_photos', { src, dest, rawOnly });
 }

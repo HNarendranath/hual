@@ -46,6 +46,15 @@
     cursor: not-allowed;
 }
 
+.import-raw-only {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 15px;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
 .import-actions button.primary {
     background: var(--accent-bg);
     border-color: var(--accent-border);

@@ -10,6 +10,7 @@ type ImportMode = 'copyAndImport' | 'importOnly';
 
 export function ImportDialog({ onImportComplete }: Props) {
     const [mode, setMode] = useState<ImportMode>('copyAndImport');
+    const [rawOnly, setRawOnly] = useState(false);
     const [source, setSource] = useState<string | null>(null);
     const [dest, setDest] = useState<string | null>(null);
     const [importing, setImporting] = useState(false);
@@ -36,7 +37,7 @@ export function ImportDialog({ onImportComplete }: Props) {
         setError(null);
         try {
             const destArg = mode === 'copyAndImport' ? dest : null;
-            await importPhotos(source, destArg);
+            await importPhotos(source, destArg, rawOnly);
             onImportComplete(mode === 'copyAndImport' ? dest! : source);
         } catch (e) {
             setError(String(e));
@@ -64,6 +65,16 @@ export function ImportDialog({ onImportComplete }: Props) {
                     Import Only
                 </button>
             </div>
+            <label className="import-raw-only">
+                <input
+                    type="checkbox"
+                    checked={rawOnly}
+                    onChange={(e) => setRawOnly(e.target.checked)}
+                    disabled={importing}
+                />
+                RAW files only
+            </label>
+
             <div className="import-actions">
                 <button onClick={handlePickSource} disabled={importing}>
                     {source ?? 'Choose source folder'}

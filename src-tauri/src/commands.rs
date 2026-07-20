@@ -54,6 +54,7 @@ pub fn import_photos(
     app: tauri::AppHandle,
     src: String,
     dest: Option<String>,
+    raw_only: bool,
 ) -> Result<(), String> {
     let src_dir = Path::new(&src);
     let mode = match dest {
@@ -70,7 +71,7 @@ pub fn import_photos(
         }
     };
 
-    pipeline::run_import(src_dir, mode, on_progress);
+    pipeline::run_import(src_dir, mode, raw_only, on_progress);
     Ok(()) // TODO: handle errors form run_import
 }
 
