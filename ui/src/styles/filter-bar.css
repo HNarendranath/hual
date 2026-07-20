@@ -29,6 +29,16 @@
     border-radius: 4px;
 }
 
-.filter-range-sep {
+.filter-range input[type="text"] {
+    width: 96px;
+    padding: 2px 4px;
+    font: inherit;
+    color: var(--text-h);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+
+.filter-range-separator {
     color: var(--text);
 }

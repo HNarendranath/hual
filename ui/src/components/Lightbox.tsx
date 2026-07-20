@@ -1,19 +1,20 @@
 import { useEffect, useState } from 'react';
-import { getFullThumbnail } from '../lib/ipc'
+import { getFullThumbnail, Photo } from '../lib/ipc'
+import { formatExposureTime } from '../lib/utils';
 
 interface Props {
-    src: string;
+    photo: Photo;
     onClose: () => void;
 }
 
-export function Lightbox({ src, onClose }: Props) {
+export function Lightbox({ photo, onClose }: Props) {
     const [url, setUrl] = useState<string | null>(null);
 
     useEffect(() => {
         let objectUrl: string | null = null;
         let cancelled = false;
 
-        getFullThumbnail(src).then((bytes) => {
+        getFullThumbnail(photo.srcPath).then((bytes) => {
             if (cancelled) return;
             const blob = new Blob([bytes], { type: 'image/jpeg' });
             objectUrl = URL.createObjectURL(blob);
@@ -26,7 +27,7 @@ export function Lightbox({ src, onClose }: Props) {
                 URL.revokeObjectURL(objectUrl);
             };
         };
-    }, [src]);
+    }, [photo.srcPath]);
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -43,10 +44,15 @@ export function Lightbox({ src, onClose }: Props) {
     return (
         <div className="lightbox-overlay" onClick={onClose}>
             {url ? (
-                <img src={url} alt={src} className="lightbox-image" onClick={(e) => e.stopPropagation()} />
+                <img src={url} alt={photo.srcPath} className="lightbox-image" onClick={(e) => e.stopPropagation()} />
             ) : (
                 <p>Loading...</p>
             )}
+            <div className="lightbox-meta" onClick={(e) => e.stopPropagation()}>
+                {photo.iso !== null && <span>ISO {photo.iso}</span>}
+                {photo.fStop !== null && <span>f/{photo.fStop}</span>}
+                {photo.exposureTime !== null && <span>{formatExposureTime(photo.exposureTime)}</span>}
+            </div>
         </div>
-    )
+    );
 }

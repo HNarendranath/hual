@@ -57,7 +57,7 @@ export function PhotoGrid({ dbPath, thumbcacheDir }: Props) {
                 </div>
                 )}
             </div>
-            {selected && <Lightbox src={selected.srcPath} onClose={() => setSelected(null)} />}
+            {selected && <Lightbox photo={selected} onClose={() => setSelected(null)} />}
         </div>
     );
 }
