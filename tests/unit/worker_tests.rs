@@ -30,7 +30,7 @@ fn valid_tiff_with_thumbnail() -> Vec<u8> {
 fn run_worker_on(
     files: Vec<RawFile>,
     source_dir: &Path,
-    dest_dir: &Path,
+    dest_dir: Option<&Path>,
     l2_cache: &L2Cache,
 ) -> (Vec<WriteJob>, Vec<MetadataRecord>) {
     let (raw_tx, raw_rx) = unbounded();
@@ -70,7 +70,7 @@ fn successful_extraction_caches_thumbnail_and_populates_exif() {
         bytes: valid_tiff_with_thumbnail(),
     }];
 
-    let (jobs, records) = run_worker_on(files, &source_dir, &dest_dir, &l2_cache);
+    let (jobs, records) = run_worker_on(files, &source_dir, Some(&dest_dir), &l2_cache);
 
     assert_eq!(jobs.len(), 1);
     assert_eq!(records.len(), 1);
@@ -101,7 +101,7 @@ fn failed_extraction_still_produces_job_and_record_with_none_fields() {
         bytes: b"not a tiff file at all".to_vec(),
     }];
 
-    let (jobs, records) = run_worker_on(files, &source_dir, &dest_dir, &l2_cache);
+    let (jobs, records) = run_worker_on(files, &source_dir, Some(&dest_dir), &l2_cache);
 
     assert_eq!(jobs.len(), 1);
     assert_eq!(records.len(), 1);
@@ -127,7 +127,7 @@ fn unsupported_extension_still_copies_with_no_metadata() {
         bytes: b"hello".to_vec(),
     }];
 
-    let (jobs, records) = run_worker_on(files, &source_dir, &dest_dir, &l2_cache);
+    let (jobs, records) = run_worker_on(files, &source_dir, Some(&dest_dir), &l2_cache);
 
     assert_eq!(jobs.len(), 1);
     assert!(records[0].exif.is_none());
@@ -153,7 +153,7 @@ fn thumbnail_extraction_succeeds_but_undecodable_bytes_dont_abort_record() {
         bytes: data,
     }];
 
-    let (jobs, records) = run_worker_on(files, &source_dir, &dest_dir, &l2_cache);
+    let (jobs, records) = run_worker_on(files, &source_dir, Some(&dest_dir), &l2_cache);
 
     assert_eq!(jobs.len(), 1);
     assert_eq!(records.len(), 1);
@@ -176,7 +176,7 @@ fn dest_path_preserves_relative_structure() {
         bytes: b"whatever".to_vec(),
     }];
 
-    let (jobs, records) = run_worker_on(files, &source_dir, &dest_dir, &l2_cache);
+    let (jobs, records) = run_worker_on(files, &source_dir, Some(&dest_dir), &l2_cache);
 
     let expected = dest_dir.join("sub").join("dir").join("photo.arw");
     assert_eq!(jobs[0].dest_path, expected);
@@ -196,7 +196,7 @@ fn bytes_ownership_moves_into_write_job_unchanged() {
         bytes: original.clone(),
     }];
 
-    let (jobs, _records) = run_worker_on(files, &source_dir, &dest_dir, &l2_cache);
+    let (jobs, _records) = run_worker_on(files, &source_dir, Some(&dest_dir), &l2_cache);
 
     assert_eq!(jobs[0].bytes, original);
 }
@@ -223,8 +223,26 @@ fn multiple_files_all_get_processed() {
         },
     ];
 
-    let (jobs, records) = run_worker_on(files, &source_dir, &dest_dir, &l2_cache);
+    let (jobs, records) = run_worker_on(files, &source_dir, Some(&dest_dir), &l2_cache);
 
     assert_eq!(jobs.len(), 3);
     assert_eq!(records.len(), 3);
+}
+
+#[test]
+fn import_only_mode_skips_write_job_and_dest_equals_src() {
+    let source_dir = PathBuf::from("/source");
+    let cache_dir = TempDir::new("worker_import_only");
+    let l2_cache = L2Cache::new(cache_dir.path.clone()).unwrap();
+
+    let files = vec![RawFile {
+        src_path: source_dir.join("photo.arw"),
+        bytes: b"whatever".to_vec(),
+    }];
+
+    let (jobs, records) = run_worker_on(files, &source_dir, None, &l2_cache);
+
+    assert_eq!(jobs.len(), 0);
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].dest_path, records[0].src_path);
 }

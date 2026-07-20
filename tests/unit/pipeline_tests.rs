@@ -38,7 +38,7 @@ fn run_import_preserves_relative_structure_and_copies_bytes() {
     source.write_file("a.arw", &a);
     source.write_file("sub/b.arw", &b);
 
-    run_import(&source.path, &dest.path, |_| {});
+    run_import(&source.path, ImportMode::CopyAndImport(dest.path.clone()), |_| {});
 
     assert_eq!(std::fs::read(dest.path.join("a.arw")).unwrap(), a);
     assert_eq!(
@@ -54,7 +54,7 @@ fn run_import_copies_unsupported_files_too() {
 
     source.write_file("notes.txt", b"just some notes");
 
-    run_import(&source.path, &dest.path, |_| {});
+    run_import(&source.path, ImportMode::CopyAndImport(dest.path.clone()), |_| {});
 
     assert_eq!(
         std::fs::read(dest.path.join("notes.txt")).unwrap(),
@@ -69,7 +69,7 @@ fn run_import_populates_l2_thumbnail_cache() {
 
     source.write_file("photo.arw", &synthetic_tiff_with_thumbnail());
 
-    run_import(&source.path, &dest.path, |_| {});
+    run_import(&source.path, ImportMode::CopyAndImport(dest.path.clone()), |_| {});
 
     let thumbcache_dir = dest.path.join(".hual").join("thumbcache");
     let entries: Vec<_> = std::fs::read_dir(&thumbcache_dir)
@@ -85,8 +85,31 @@ fn run_import_on_empty_source_dir_does_nothing_and_does_not_hang() {
     let source = TempDir::new("pipeline_import_empty_source");
     let dest = TempDir::new("pipeline_import_empty_dest");
 
-    run_import(&source.path, &dest.path, |_| {});
+    run_import(&source.path, ImportMode::CopyAndImport(dest.path.clone()), |_| {});
     // nothing to assert beyond "this returned" -- proves the whole
     // scanner -> worker -> writer -> db_writer shutdown chain completes
     // cleanly even when zero files ever flow through it.
+}
+
+#[test]
+fn run_import_only_indexes_in_place_without_copying() {
+    let source = TempDir::new("pipeline_import_only_source");
+    source.write_file("a.arw", &synthetic_tiff());
+
+    run_import(&source.path, ImportMode::ImportOnly, |_| {});
+
+    let db_path = source.path.join(".hual").join("hual.db");
+    assert!(db_path.exists());
+    assert_eq!(
+        std::fs::read(source.path.join("a.arw")).unwrap(),
+        synthetic_tiff()
+    );
+
+    let conn = rusqlite::Connection::open(&db_path).unwrap();
+    let (src_path, dest_path): (String, String) = conn
+        .query_row("SELECT src_path, dest_path FROM photos", [], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })
+        .unwrap();
+    assert_eq!(src_path, dest_path);
 }
