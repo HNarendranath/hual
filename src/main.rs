@@ -102,6 +102,7 @@ fn import(mut args: impl Iterator<Item = OsString>) -> ExitCode {
     pipeline::run_import(
         &PathBuf::from(source),
         pipeline::ImportMode::CopyAndImport(PathBuf::from(dest)),
+        false,
         |_| {},
     );
     ExitCode::SUCCESS

@@ -40,7 +40,12 @@ pub enum ImportMode {
 
 const CHANNEL_CAPACITY: usize = 32;
 
-pub fn run_import(source_dir: &Path, mode: ImportMode, on_progress: impl Fn(usize) + Sync) {
+pub fn run_import(
+    source_dir: &Path,
+    mode: ImportMode,
+    raw_only: bool,
+    on_progress: impl Fn(usize) + Sync,
+) {
     let hual_root: PathBuf = match &mode {
         ImportMode::CopyAndImport(dest_dir) => {
             // ensure dest_dir before making hidden folder
@@ -100,7 +105,7 @@ pub fn run_import(source_dir: &Path, mode: ImportMode, on_progress: impl Fn(usiz
     let on_progress: &(dyn Fn(usize) + Sync) = &on_progress;
 
     thread::scope(|s| {
-        s.spawn(|| scanner::run(source_dir, raw_tx));
+        s.spawn(|| scanner::run(source_dir, raw_tx, raw_only));
 
         let l2_cache_ref = &l2_cache;
         let counter_ref = &counter;
