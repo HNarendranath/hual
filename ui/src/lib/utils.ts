@@ -26,3 +26,8 @@ export function parseExposureInput(raw: string): number | null {
     const value = Number(trimmed);
     return Number.isFinite(value) ? value : null;
 }
+
+export function formatFocalLength(mm: number | null): string {
+    if (mm === null) return '—';
+    return `${Number(mm.toFixed(1))}mm`;
+}

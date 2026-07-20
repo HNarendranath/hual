@@ -2,7 +2,7 @@ import { PhotoFilters, RangeFilter } from '../lib/ipc';
 import { useState } from 'react';
 import { formatExposureInput, parseExposureInput } from '../lib/utils';
 
-type Field = 'iso' | 'fStop' | 'exposureTime';
+type Field = 'iso' | 'fStop' | 'exposureTime' | 'focalLength';
 type Bound = 'min' | 'max';
 
 
@@ -36,6 +36,7 @@ export function FilterBar({ filters, onChange }: Props) {
 
     return (
         <div className="filter-bar">
+            <FilterRange label = "Focal Length" field="focalLength" range={filters.focalLength} onChange={handleChange} step={1} />
             <FilterRange label = "ISO" field="iso" range={filters.iso} onChange={handleChange} />
             <FilterRange label = "F-Stop" field="fStop" range={filters.fStop} onChange={handleChange} step={0.1} />
             <ExposureRangeInput label = "Exposure Time" range={filters.exposureTime} onChange={handleExposureChange} />

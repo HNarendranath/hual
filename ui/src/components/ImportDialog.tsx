@@ -14,12 +14,14 @@ export function ImportDialog({ onImportComplete }: Props) {
     const importedCount = useImportProgress();
 
     const handlePickSource = async () => {
-        const dir = await pickDir();
+        // const dir = await pickDir();
+        const dir = "C:\\Users\\gn\\Pictures\\hualtesting";
         if (dir) setSource(dir);
     };
 
     const handlePickDest = async () => {
-        const dir = await pickDir();
+        // const dir = await pickDir();
+        const dir = "C:\\Users\\gn\\Downloads\\hualtest2";
         if (dir) setDest(dir);
     }
 

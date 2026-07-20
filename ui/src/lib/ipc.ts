@@ -5,6 +5,7 @@ export interface Photo {
     destPath: string;
     exposureTime: number | null;
     fStop: number | null;
+    focalLength: number | null;
     iso: number | null;
 }
 
@@ -17,6 +18,7 @@ export interface PhotoFilters {
     iso: RangeFilter;
     fStop: RangeFilter;
     exposureTime: RangeFilter;
+    focalLength: RangeFilter;
 }
 
 export interface ImportProgress {
@@ -27,6 +29,7 @@ export const EMPTY_FILTERS: PhotoFilters = {
     iso: { min: null, max: null },
     fStop: { min: null, max: null },
     exposureTime: { min: null, max: null },
+    focalLength: { min: null, max: null },
 };
 
 export async function listPhotos(dbPath: string, filters: PhotoFilters): Promise<Photo[]> {

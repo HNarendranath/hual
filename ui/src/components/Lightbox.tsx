@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getFullThumbnail, Photo } from '../lib/ipc'
-import { formatExposureTime } from '../lib/utils';
+import { formatExposureTime, formatFocalLength } from '../lib/utils';
 
 interface Props {
     photo: Photo;
@@ -49,6 +49,8 @@ export function Lightbox({ photo, onClose }: Props) {
                 <p>Loading...</p>
             )}
             <div className="lightbox-meta" onClick={(e) => e.stopPropagation()}>
+                {photo.focalLength !== null && <span>{formatFocalLength(photo.focalLength)}</span>}
+
                 {photo.iso !== null && <span>ISO {photo.iso}</span>}
                 {photo.fStop !== null && <span>f/{photo.fStop}</span>}
                 {photo.exposureTime !== null && <span>{formatExposureTime(photo.exposureTime)}</span>}
