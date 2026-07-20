@@ -10,7 +10,7 @@
     overflow: hidden;
 }
 
-.import-progress-bar-indeterminate::after {
+.progress-bar::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -18,6 +18,60 @@
     background: var(--accent);
     border-radius: 2px;
     animation: import-progress-slide 1.2s ease-in-out infinite;
+}
+
+.import-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+.import-actions button {
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text-h);
+    font: inherit;
+    cursor: pointer;
+}
+
+.import-actions button:hover:not(:disabled) {
+    border-color: var(--accent-border);
+}
+
+.import-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.import-actions button.primary {
+    background: var(--accent-bg);
+    border-color: var(--accent-border);
+    font-weight: 600;
+}
+
+
+.import-mode-toggle {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.import-mode-toggle button {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+}
+
+.import-mode-toggle button.active {
+    background: var(--accent-bg);
+    border-color: var(--accent-border);
+    color: var(--text-h);
 }
 
 @keyframes import-progress-slide {

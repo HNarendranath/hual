@@ -1,6 +1,8 @@
 use hual::cache::{L2Cache, LRUCache};
 use hual::pipeline;
-use hual::pipeline::{list_photos as list_photos_hual, open_db, PhotoFilters, PhotoRow};
+use hual::pipeline::{
+    list_photos as list_photos_hual, open_db, ImportMode, PhotoFilters, PhotoRow,
+};
 use hual::thumbnail;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -48,9 +50,16 @@ pub fn list_photos(db_path: String, filters: PhotoFilters) -> Result<Vec<PhotoRo
 }
 
 #[tauri::command]
-pub fn import_photos(app: tauri::AppHandle, src: String, dest: String) -> Result<(), String> {
+pub fn import_photos(
+    app: tauri::AppHandle,
+    src: String,
+    dest: Option<String>,
+) -> Result<(), String> {
     let src_dir = Path::new(&src);
-    let dest_dir = Path::new(&dest);
+    let mode = match dest {
+        Some(dest) => ImportMode::CopyAndImport(PathBuf::from(dest)),
+        None => ImportMode::ImportOnly,
+    };
 
     let last_emit = Mutex::new(Instant::now() - PROGRESS_EMIT_INTERVAL);
     let on_progress = move |count: usize| {
@@ -61,7 +70,7 @@ pub fn import_photos(app: tauri::AppHandle, src: String, dest: String) -> Result
         }
     };
 
-    pipeline::run_import(src_dir, dest_dir, on_progress);
+    pipeline::run_import(src_dir, mode, on_progress);
     Ok(()) // TODO: handle errors form run_import
 }
 

@@ -1,12 +1,15 @@
 import { useState } from "react";
-import { pickDir, importPhotos } from '../lib/ipc';
+import { importPhotos } from '../lib/ipc';
 import { useImportProgress } from '../hooks/useImportProgress';
 
 interface Props {
     onImportComplete: (destDir: string) => void;
 }
 
+type ImportMode = 'copyAndImport' | 'importOnly';
+
 export function ImportDialog({ onImportComplete }: Props) {
+    const [mode, setMode] = useState<ImportMode>('copyAndImport');
     const [source, setSource] = useState<string | null>(null);
     const [dest, setDest] = useState<string | null>(null);
     const [importing, setImporting] = useState(false);
@@ -25,13 +28,16 @@ export function ImportDialog({ onImportComplete }: Props) {
         if (dir) setDest(dir);
     }
 
+    const canImport = source !== null && (mode === 'importOnly' || dest !== null);
+
     const handleImport = async () => {
-        if (!source || !dest) return;
+        if (!source || !canImport) return;
         setImporting(true);
         setError(null);
         try {
-            await importPhotos(source, dest);
-            onImportComplete(dest);
+            const destArg = mode === 'copyAndImport' ? dest : null;
+            await importPhotos(source, destArg);
+            onImportComplete(mode === 'copyAndImport' ? dest! : source);
         } catch (e) {
             setError(String(e));
         } finally {
@@ -42,15 +48,35 @@ export function ImportDialog({ onImportComplete }: Props) {
     return (
         <div className="import-dialog">
             <h2>Import Photos</h2>
-            <button onClick={handlePickSource} disabled={importing}>
-                {source ?? 'Choose source folder'}
-            </button>
-            <button onClick={handlePickDest} disabled={importing}>
-                {dest ?? 'Choose destination folder'}
-            </button>
-            <button onClick={handleImport} disabled={!source || !dest || importing}>
-                {importing ? 'Importing...' : 'Import'}
-            </button>
+            <div className="import-mode-toggle">
+                <button
+                    className={mode === 'copyAndImport' ? 'active' : ''}
+                    onClick={() => setMode('copyAndImport')}
+                    disabled={importing}
+                >
+                    Copy & Import
+                </button>
+                <button
+                    className={mode === 'importOnly' ? 'active' : ''}
+                    onClick={() => setMode('importOnly')}
+                    disabled={importing}
+                >
+                    Import Only
+                </button>
+            </div>
+            <div className="import-actions">
+                <button onClick={handlePickSource} disabled={importing}>
+                    {source ?? 'Choose source folder'}
+                </button>
+                {mode === 'copyAndImport' && (
+                    <button onClick={handlePickDest} disabled={importing}>
+                        {dest ?? 'Choose destination folder'}
+                    </button>
+                )}
+                <button className="primary" onClick={handleImport} disabled={!canImport || importing}>
+                    {importing ? 'Importing...' : 'Import'}
+                </button>
+            </div>
             {importing && (
                 <div className="import-progress">
                     <div className="progress-bar" />
