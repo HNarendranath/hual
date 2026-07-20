@@ -279,17 +279,20 @@ fn exif_ifd_offset_missing_is_none() {
 
 #[test]
 fn exif_tags_reads_all_present() {
-    let mut data = vec![0u8; 16];
+    let mut data = vec![0u8; 24];
     data[0..4].copy_from_slice(&1u32.to_le_bytes());
     data[4..8].copy_from_slice(&250u32.to_le_bytes());
     data[8..12].copy_from_slice(&28u32.to_le_bytes());
     data[12..16].copy_from_slice(&10u32.to_le_bytes());
+    data[16..20].copy_from_slice(&50u32.to_le_bytes());
+    data[20..24].copy_from_slice(&1u32.to_le_bytes());
 
     let ifd = Ifd {
         entries: vec![
             ifd_entry(TAG_EXPOSURE_TIME, 5, 1, 0),
             ifd_entry(TAG_F_STOP, 5, 1, 8),
             ifd_entry(TAG_ISO, 3, 1, 400),
+            ifd_entry(TAG_FOCAL_LENGTH, 5, 1, 16),
         ],
         next_offset: 0,
     };
@@ -298,13 +301,14 @@ fn exif_tags_reads_all_present() {
     assert_eq!(exif.exposure_time, Some((1, 250)));
     assert_eq!(exif.f_stop, Some((28, 10)));
     assert_eq!(exif.iso, Some(400));
+    assert_eq!(exif.focal_length, Some((50, 1)));
 }
 
 #[test]
 fn exif_tags_missing_tags_are_all_none() {
     let ifd = Ifd { entries: vec![], next_offset: 0 };
     let exif = exif_tags(&[], Endian::Little, &ifd).unwrap();
-    assert_eq!(exif, ExifData { exposure_time: None, f_stop: None, iso: None });
+    assert_eq!(exif, ExifData { exposure_time: None, f_stop: None, iso: None, focal_length: None });
 }
 
 #[test]
@@ -314,19 +318,22 @@ fn exif_tags_partial_only_iso_present() {
     assert_eq!(exif.exposure_time, None);
     assert_eq!(exif.f_stop, None);
     assert_eq!(exif.iso, Some(100));
+    assert_eq!(exif.focal_length, None);
 }
 
 #[test]
 fn extract_exif_from_bytes_reads_full_exif_ifd() {
     let exif_ifd_offset = IFD0_OFFSET + ifd_len(1);
-    let rational1_offset = exif_ifd_offset + ifd_len(3);
+    let rational1_offset = exif_ifd_offset + ifd_len(4);
     let rational2_offset = rational1_offset + 8;
+    let rational3_offset = rational2_offset + 8;
 
     let ifd0_entries = vec![entry(EXIF_IFD_POINTER, 4, 1, exif_ifd_offset)];
     let exif_entries = vec![
         entry(TAG_EXPOSURE_TIME, 5, 1, rational1_offset),
         entry(TAG_F_STOP, 5, 1, rational2_offset),
         entry(TAG_ISO, 3, 1, 400),
+        entry(TAG_FOCAL_LENGTH, 5, 1, rational3_offset),
     ];
 
     let mut data = Vec::new();
@@ -337,11 +344,14 @@ fn extract_exif_from_bytes_reads_full_exif_ifd() {
     data.extend_from_slice(&250u32.to_le_bytes());
     data.extend_from_slice(&28u32.to_le_bytes());
     data.extend_from_slice(&10u32.to_le_bytes());
+    data.extend_from_slice(&50u32.to_le_bytes());
+    data.extend_from_slice(&1u32.to_le_bytes());
 
     let exif = extract_exif_from_bytes(&data).unwrap();
     assert_eq!(exif.exposure_time, Some((1, 250)));
     assert_eq!(exif.f_stop, Some((28, 10)));
     assert_eq!(exif.iso, Some(400));
+    assert_eq!(exif.focal_length, Some((50, 1)));
 }
 
 #[test]
@@ -366,6 +376,7 @@ fn extract_exif_from_bytes_reads_full_exif_ifd_big_endian() {
     assert_eq!(exif.iso, Some(400));
     assert_eq!(exif.exposure_time, Some((1, 320)));
     assert_eq!(exif.f_stop, None);
+    assert_eq!(exif.focal_length, None);
 }
 
 #[test]
@@ -375,7 +386,7 @@ fn extract_exif_from_bytes_missing_exif_pointer_returns_all_none() {
     write_ifd(&mut data, &[], 0, true);
 
     let exif = extract_exif_from_bytes(&data).unwrap();
-    assert_eq!(exif, ExifData { exposure_time: None, f_stop: None, iso: None });
+    assert_eq!(exif, ExifData { exposure_time: None, f_stop: None, iso: None, focal_length: None });
 }
 
 #[test]
@@ -394,6 +405,7 @@ fn extract_exif_end_to_end() {
     assert_eq!(exif.iso, Some(200));
     assert_eq!(exif.exposure_time, None);
     assert_eq!(exif.f_stop, None);
+    assert_eq!(exif.focal_length, None);
 }
 
 #[test]

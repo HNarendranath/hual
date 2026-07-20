@@ -25,6 +25,7 @@ fn run_persists_records_with_metadata() {
             exposure_time: Some((1, 800)),
             f_stop: Some((28, 10)),
             iso: Some(100),
+            focal_length: Some((50, 1)),
         }),
     })
     .unwrap();
@@ -33,11 +34,11 @@ fn run_persists_records_with_metadata() {
     run(rx, conn);
 
     let verify = Connection::open(&db_path).unwrap();
-    let (dest, exposure, f_stop, iso): (String, f64, f64, i64) = verify
+    let (dest, exposure, f_stop, iso, focal_length): (String, f64, f64, i64, f64) = verify
         .query_row(
-            "SELECT dest_path, exposure_time, f_stop, iso FROM photos WHERE src_path = ?1",
+            "SELECT dest_path, exposure_time, f_stop, iso, focal_length FROM photos WHERE src_path = ?1",
             params!["/source/photo0.arw"],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
         )
         .unwrap();
 
@@ -45,6 +46,7 @@ fn run_persists_records_with_metadata() {
     assert!((exposure - 1.0 / 800.0).abs() < 1e-9);
     assert!((f_stop - 2.8).abs() < 1e-9);
     assert_eq!(iso, 100);
+    assert!((focal_length - 50.0).abs() < 1e-9);
 }
 
 #[test]
@@ -65,17 +67,23 @@ fn run_persists_records_with_no_metadata_as_null() {
     run(rx, conn);
 
     let verify = Connection::open(&db_path).unwrap();
-    let (exposure, f_stop, iso): (Option<f64>, Option<f64>, Option<i64>) = verify
+    let (exposure, f_stop, iso, focal_length): (
+        Option<f64>,
+        Option<f64>,
+        Option<i64>,
+        Option<f64>,
+    ) = verify
         .query_row(
-            "SELECT exposure_time, f_stop, iso FROM photos WHERE src_path = ?1",
+            "SELECT exposure_time, f_stop, iso, focal_length FROM photos WHERE src_path = ?1",
             params!["/source/unsupported.txt"],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .unwrap();
 
     assert_eq!(exposure, None);
     assert_eq!(f_stop, None);
     assert_eq!(iso, None);
+    assert_eq!(focal_length, None);
 }
 
 #[test]
@@ -92,6 +100,7 @@ fn run_replaces_existing_row_on_reimport_of_same_src_path() {
             exposure_time: Some((1, 800)),
             f_stop: Some((28, 10)),
             iso: Some(100),
+            focal_length: Some((24, 1)),
         }),
     })
     .unwrap();
@@ -107,6 +116,7 @@ fn run_replaces_existing_row_on_reimport_of_same_src_path() {
             exposure_time: Some((1, 200)),
             f_stop: Some((40, 10)),
             iso: Some(400),
+            focal_length: Some((70, 1)),
         }),
     })
     .unwrap();
@@ -127,4 +137,82 @@ fn run_replaces_existing_row_on_reimport_of_same_src_path() {
         )
         .unwrap();
     assert_eq!(dest, "/dest/photo0_renamed.arw");
+}
+
+#[test]
+fn list_photos_filters_by_focal_length_range() {
+    let dir = TempDir::new("db_writer_focal_length_range");
+    let db_path = dir.path.join("test.db");
+    let conn = open_db(&db_path).unwrap();
+
+    let (tx, rx) = unbounded();
+    for (name, focal_length) in [("wide", (24, 1)), ("normal", (50, 1)), ("tele", (200, 1))] {
+        tx.send(MetadataRecord {
+            src_path: PathBuf::from(format!("/source/{name}.arw")),
+            dest_path: PathBuf::from(format!("/dest/{name}.arw")),
+            exif: Some(ExifData {
+                exposure_time: None,
+                f_stop: None,
+                iso: None,
+                focal_length: Some(focal_length),
+            }),
+        })
+        .unwrap();
+    }
+    drop(tx);
+    run(rx, conn);
+
+    let verify = open_db(&db_path).unwrap();
+    let filters = PhotoFilters {
+        focal_length: RangeFilter {
+            min: Some(35.0),
+            max: Some(100.0),
+        },
+        ..Default::default()
+    };
+    let rows = list_photos(&verify, &filters).unwrap();
+
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].src_path, "/source/normal.arw");
+}
+
+#[test]
+fn list_photos_combines_focal_length_with_other_field_filters() {
+    let dir = TempDir::new("db_writer_focal_length_and_iso");
+    let db_path = dir.path.join("test.db");
+    let conn = open_db(&db_path).unwrap();
+
+    let (tx, rx) = unbounded();
+    for (name, iso) in [("a", 100), ("b", 3200)] {
+        tx.send(MetadataRecord {
+            src_path: PathBuf::from(format!("/source/{name}.arw")),
+            dest_path: PathBuf::from(format!("/dest/{name}.arw")),
+            exif: Some(ExifData {
+                exposure_time: None,
+                f_stop: None,
+                iso: Some(iso),
+                focal_length: Some((50, 1)),
+            }),
+        })
+        .unwrap();
+    }
+    drop(tx);
+    run(rx, conn);
+
+    let verify = open_db(&db_path).unwrap();
+    let filters = PhotoFilters {
+        focal_length: RangeFilter {
+            min: Some(35.0),
+            max: Some(100.0),
+        },
+        iso: RangeFilter {
+            min: Some(50),
+            max: Some(400),
+        },
+        ..Default::default()
+    };
+    let rows = list_photos(&verify, &filters).unwrap();
+
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].src_path, "/source/a.arw");
 }

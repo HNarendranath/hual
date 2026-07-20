@@ -81,7 +81,8 @@ fn successful_extraction_caches_thumbnail_and_populates_exif() {
         Some(ExifData {
             exposure_time: None,
             f_stop: None,
-            iso: None
+            iso: None,
+            focal_length: None,
         })
     );
     let key = source_dir.join("photo.arw").to_string_lossy().into_owned();
