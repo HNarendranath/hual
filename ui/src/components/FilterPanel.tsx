@@ -11,7 +11,7 @@ interface Props {
     onChange: (newFilter: PhotoFilters) => void;
 }
 
-export function FilterBar({ filters, onChange }: Props) {
+export function FilterPanel({ filters, onChange }: Props) {
     const handleChange = (field: Field, bound: Bound, val: string) => {
         const parsedVal = val === '' ? null : Number(val);
         onChange({
@@ -35,7 +35,7 @@ export function FilterBar({ filters, onChange }: Props) {
     };
 
     return (
-        <div className="filter-bar">
+        <div className="filter-panel">
             <FilterRange label = "Focal Length" field="focalLength" range={filters.focalLength} onChange={handleChange} step={1} />
             <FilterRange label = "ISO" field="iso" range={filters.iso} onChange={handleChange} />
             <FilterRange label = "F-Stop" field="fStop" range={filters.fStop} onChange={handleChange} step={0.1} />
@@ -44,18 +44,20 @@ export function FilterBar({ filters, onChange }: Props) {
     );
 }
 
-function FilterRange({ label, field, range, onChange, step }: { 
-    label: string; field: Field; range: RangeFilter; 
+function FilterRange({ label, field, range, onChange, step }: {
+    label: string; field: Field; range: RangeFilter;
     onChange: (field: Field, bound: Bound, val: string) => void; step?: number
 }) {
     return (
         <div className="filter-range">
             <span className="filter-range-label">{label}</span>
-            <input type="number" placeholder="min" step={step}
-                value={range.min ?? ''} onChange={(e) => onChange(field, 'min', e.target.value)} />
-            <span className="filter-range-separator">-</span>
-            <input type="number" placeholder="max" step={step} 
-                value={range.max ?? ''} onChange={(e) => onChange(field, 'max', e.target.value)} />
+            <div className="filter-range-inputs">
+                <input type="number" placeholder="min" step={step}
+                    value={range.min ?? ''} onChange={(e) => onChange(field, 'min', e.target.value)} />
+                <span className="filter-range-separator">-</span>
+                <input type="number" placeholder="max" step={step}
+                    value={range.max ?? ''} onChange={(e) => onChange(field, 'max', e.target.value)} />
+            </div>
         </div>
     );
 }
@@ -86,19 +88,21 @@ function ExposureRangeInput({ label, range, onChange }: {
     return (
         <div className="filter-range">
             <span className="filter-range-label">{label}</span>
-            <input type="text" placeholder="min"
-                value={minText}
-                onChange={(e) => {
-                    setMinText(e.target.value);
-                    onChange('min', parseExposureInput(e.target.value));
-                }} />
-            <span className="filter-range-separator">-</span>
-            <input type="text" placeholder="max"
-                value={maxText}
-                onChange={(e) => {
-                    setMaxText(e.target.value);
-                    onChange('max', parseExposureInput(e.target.value));
-                }} />
+            <div className="filter-range-inputs">
+                <input type="text" placeholder="min"
+                    value={minText}
+                    onChange={(e) => {
+                        setMinText(e.target.value);
+                        onChange('min', parseExposureInput(e.target.value));
+                    }} />
+                <span className="filter-range-separator">-</span>
+                <input type="text" placeholder="max"
+                    value={maxText}
+                    onChange={(e) => {
+                        setMaxText(e.target.value);
+                        onChange('max', parseExposureInput(e.target.value));
+                    }} />
+            </div>
         </div>
     );
 }

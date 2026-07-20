@@ -22,9 +22,9 @@
 
 .import-actions {
     display: flex;
+    flex-direction: column;
     gap: 8px;
     margin-top: 12px;
-    flex-wrap: wrap;
 }
 
 .import-actions button {
@@ -35,6 +35,7 @@
     color: var(--text-h);
     font: inherit;
     cursor: pointer;
+    text-align: left;
 }
 
 .import-actions button:hover:not(:disabled) {
@@ -50,7 +51,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 15px;
+    font-size: 13px;
     color: var(--text);
     margin-bottom: 8px;
 }
@@ -59,6 +60,7 @@
     background: var(--accent-bg);
     border-color: var(--accent-border);
     font-weight: 600;
+    text-align: center;
 }
 
 
@@ -69,18 +71,26 @@
 }
 
 .import-mode-toggle button {
+    flex: 1;
     padding: 4px 10px;
     border: 1px solid var(--border);
     border-radius: 4px;
     background: var(--bg);
     color: var(--text);
     font: inherit;
+    font-size: 13px;
+    cursor: pointer;
 }
 
 .import-mode-toggle button.active {
     background: var(--accent-bg);
     border-color: var(--accent-border);
     color: var(--text-h);
+}
+
+.error {
+    color: #e5484d;
+    font-size: 13px;
 }
 
 @keyframes import-progress-slide {

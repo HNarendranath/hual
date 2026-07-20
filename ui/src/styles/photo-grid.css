@@ -3,10 +3,26 @@
     padding: 8px;
 }
 
-.photo-grid-page {
+.photo-grid-container {
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     height: 100vh;
+}
+
+.content-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.photo-count {
+    font-size: 13px;
+    color: var(--text);
 }
 
 .photo-grid-viewport {
@@ -16,15 +32,33 @@
     overflow-y: auto;
 }
 
+.grid-empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text);
+    font-size: 14px;
+    text-align: center;
+    padding: 32px;
+}
+
 .thumbnail {
     width: 100%;
     aspect-ratio: 4/3;
     object-fit: cover;
     border-radius: 4px;
+    cursor: pointer;
+    transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.thumbnail:hover {
+    transform: scale(1.02);
+    box-shadow: var(--shadow);
 }
 
 .thumbnail-placeholder {
-    background: #ddd;
+    background: var(--border);
 }
 
 .lightbox-overlay {

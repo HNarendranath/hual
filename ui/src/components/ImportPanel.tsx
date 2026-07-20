@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { importPhotos } from '../lib/ipc';
+import { pickDir, importPhotos } from '../lib/ipc';
 import { useImportProgress } from '../hooks/useImportProgress';
 
 interface Props {
-    onImportComplete: (destDir: string) => void;
+    onImportComplete: (libraryDir: string) => void;
 }
 
 type ImportMode = 'copyAndImport' | 'importOnly';
 
-export function ImportDialog({ onImportComplete }: Props) {
+export function ImportPanel({ onImportComplete }: Props) {
     const [mode, setMode] = useState<ImportMode>('copyAndImport');
     const [rawOnly, setRawOnly] = useState(false);
     const [source, setSource] = useState<string | null>(null);
@@ -18,14 +18,12 @@ export function ImportDialog({ onImportComplete }: Props) {
     const importedCount = useImportProgress();
 
     const handlePickSource = async () => {
-        // const dir = await pickDir();
-        const dir = "C:\\Users\\gn\\Pictures\\hualtesting";
+        const dir = await pickDir();
         if (dir) setSource(dir);
     };
 
     const handlePickDest = async () => {
-        // const dir = await pickDir();
-        const dir = "C:\\Users\\gn\\Downloads\\hualtest2";
+        const dir = await pickDir();
         if (dir) setDest(dir);
     }
 
@@ -47,8 +45,7 @@ export function ImportDialog({ onImportComplete }: Props) {
     };
 
     return (
-        <div className="import-dialog">
-            <h2>Import Photos</h2>
+        <div className="import-panel">
             <div className="import-mode-toggle">
                 <button
                     className={mode === 'copyAndImport' ? 'active' : ''}

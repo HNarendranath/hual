@@ -1,0 +1,39 @@
+.filter-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.filter-range {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.filter-range-label {
+    font-size: 13px;
+    color: var(--text);
+}
+
+.filter-range-inputs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.filter-range-inputs input[type="number"],
+.filter-range-inputs input[type="text"] {
+    width: 0;
+    flex: 1;
+    padding: 4px 6px;
+    font: inherit;
+    color: var(--text-h);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+
+.filter-range-separator {
+    color: var(--text);
+    flex-shrink: 0;
+}
