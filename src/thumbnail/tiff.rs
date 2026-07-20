@@ -276,12 +276,14 @@ const EXIF_IFD_POINTER: u16 = 0x8769; // tag on IFD0 pointing at the Exif sub-IF
 const TAG_EXPOSURE_TIME: u16 = 0x829A; // RATIONAL — shutter speed
 const TAG_F_STOP: u16 = 0x829D; // RATIONAL — aperture
 const TAG_ISO: u16 = 0x8827; // SHORT — ISO
+const TAG_FOCAL_LENGTH: u16 = 0x920A; // RATIONAL — focal length
 
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
 pub struct ExifData {
     pub exposure_time: Option<(u32, u32)>,
     pub f_stop: Option<(u32, u32)>,
     pub iso: Option<u16>,
+    pub focal_length: Option<(u32, u32)>,
 }
 
 fn read_rational(data: &[u8], endian: Endian, offset: usize) -> Result<(u32, u32), TiffError> {
@@ -315,6 +317,11 @@ fn exif_tags(data: &[u8], endian: Endian, ifd: &Ifd) -> Result<ExifData, TiffErr
         None => None,
     };
 
+    let focal_length = match ifd.entries.iter().find(|e| e.tag == TAG_FOCAL_LENGTH) {
+        Some(entry) => Some(read_rational(data, endian, entry.value_or_offset as usize)?),
+        None => None,
+    };
+
     let iso = ifd
         .entries
         .iter()
@@ -325,6 +332,7 @@ fn exif_tags(data: &[u8], endian: Endian, ifd: &Ifd) -> Result<ExifData, TiffErr
         exposure_time,
         f_stop,
         iso,
+        focal_length,
     })
 }
 
@@ -337,6 +345,7 @@ pub fn extract_exif_from_bytes(data: &[u8]) -> Result<ExifData, TiffError> {
             exposure_time: None,
             f_stop: None,
             iso: None,
+            focal_length: None,
         });
     };
 
