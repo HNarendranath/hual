@@ -11,9 +11,10 @@ fn init_schema(conn: &Connection) -> rusqlite::Result<()> {
             dest_path TEXT NOT NULL,
             exposure_time REAL,
             f_stop REAL,
+            focal_length REAL,
             iso INTEGER    
         );
-        CREATE INDEX IF NOT EXISTS idx_photos_exif ON photos (iso, f_stop, exposure_time);",
+        CREATE INDEX IF NOT EXISTS idx_photos_exif ON photos (iso, f_stop, exposure_time, focal_length);",
     )
 }
 
@@ -33,15 +34,20 @@ fn insert_record(conn: &Connection, record: &MetadataRecord) -> rusqlite::Result
         .and_then(|e| e.f_stop)
         .map(|(n, d)| n as f64 / d as f64);
     let iso = record.exif.and_then(|e| e.iso);
+    let focal_length = record
+        .exif
+        .and_then(|e| e.focal_length)
+        .map(|(n, d)| n as f64 / d as f64);
 
     conn.execute(
-        "INSERT OR REPLACE INTO photos (src_path, dest_path, exposure_time, f_stop, iso)
-        VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT OR REPLACE INTO photos (src_path, dest_path, exposure_time, f_stop, focal_length, iso)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         params![
             record.src_path.to_string_lossy(),
             record.dest_path.to_string_lossy(),
             exposure_time,
             f_stop,
+            focal_length,
             iso,
         ],
     )?;
@@ -63,6 +69,7 @@ pub struct PhotoRow {
     dest_path: String,
     exposure_time: Option<f64>,
     f_stop: Option<f64>,
+    focal_length: Option<f64>,
     iso: Option<u16>,
 }
 
@@ -90,6 +97,8 @@ pub struct PhotoFilters {
     pub f_stop: RangeFilter<f64>,
     #[serde(default)]
     pub exposure_time: RangeFilter<f64>,
+    #[serde(default)]
+    pub focal_length: RangeFilter<f64>,
 }
 
 pub fn list_photos(conn: &Connection, filters: &PhotoFilters) -> rusqlite::Result<Vec<PhotoRow>> {
@@ -119,7 +128,12 @@ pub fn list_photos(conn: &Connection, filters: &PhotoFilters) -> rusqlite::Resul
     if let Some(v) = filters.exposure_time.max {
         push("exposure_time", "<=", Box::new(v));
     }
-
+    if let Some(v) = filters.focal_length.min {
+        push("focal_length", ">=", Box::new(v));
+    }
+    if let Some(v) = filters.focal_length.max {
+        push("focal_length", "<=", Box::new(v));
+    }
     let where_clause = if clauses.is_empty() {
         String::new()
     } else {
@@ -127,7 +141,7 @@ pub fn list_photos(conn: &Connection, filters: &PhotoFilters) -> rusqlite::Resul
     };
 
     let sql = format!(
-        "SELECT src_path, dest_path, exposure_time, f_stop, iso FROM photos {where_clause}"
+        "SELECT src_path, dest_path, exposure_time, f_stop, focal_length, iso FROM photos {where_clause}"
     );
 
     let mut stmt = conn.prepare(&sql)?;
@@ -138,7 +152,8 @@ pub fn list_photos(conn: &Connection, filters: &PhotoFilters) -> rusqlite::Resul
             dest_path: row.get(1)?,
             exposure_time: row.get(2)?,
             f_stop: row.get(3)?,
-            iso: row.get(4)?,
+            focal_length: row.get(4)?,
+            iso: row.get(5)?,
         })
     })?;
 
