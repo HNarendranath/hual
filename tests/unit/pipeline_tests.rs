@@ -38,7 +38,7 @@ fn run_import_preserves_relative_structure_and_copies_bytes() {
     source.write_file("a.arw", &a);
     source.write_file("sub/b.arw", &b);
 
-    run_import(&source.path, ImportMode::CopyAndImport(dest.path.clone()), |_| {});
+    run_import(&source.path, ImportMode::CopyAndImport(dest.path.clone()), false, |_| {});
 
     assert_eq!(std::fs::read(dest.path.join("a.arw")).unwrap(), a);
     assert_eq!(
@@ -54,7 +54,7 @@ fn run_import_copies_unsupported_files_too() {
 
     source.write_file("notes.txt", b"just some notes");
 
-    run_import(&source.path, ImportMode::CopyAndImport(dest.path.clone()), |_| {});
+    run_import(&source.path, ImportMode::CopyAndImport(dest.path.clone()), false, |_| {});
 
     assert_eq!(
         std::fs::read(dest.path.join("notes.txt")).unwrap(),
@@ -69,7 +69,7 @@ fn run_import_populates_l2_thumbnail_cache() {
 
     source.write_file("photo.arw", &synthetic_tiff_with_thumbnail());
 
-    run_import(&source.path, ImportMode::CopyAndImport(dest.path.clone()), |_| {});
+    run_import(&source.path, ImportMode::CopyAndImport(dest.path.clone()), false, |_| {});
 
     let thumbcache_dir = dest.path.join(".hual").join("thumbcache");
     let entries: Vec<_> = std::fs::read_dir(&thumbcache_dir)
@@ -85,7 +85,7 @@ fn run_import_on_empty_source_dir_does_nothing_and_does_not_hang() {
     let source = TempDir::new("pipeline_import_empty_source");
     let dest = TempDir::new("pipeline_import_empty_dest");
 
-    run_import(&source.path, ImportMode::CopyAndImport(dest.path.clone()), |_| {});
+    run_import(&source.path, ImportMode::CopyAndImport(dest.path.clone()), false, |_| {});
     // nothing to assert beyond "this returned" -- proves the whole
     // scanner -> worker -> writer -> db_writer shutdown chain completes
     // cleanly even when zero files ever flow through it.
@@ -96,7 +96,7 @@ fn run_import_only_indexes_in_place_without_copying() {
     let source = TempDir::new("pipeline_import_only_source");
     source.write_file("a.arw", &synthetic_tiff());
 
-    run_import(&source.path, ImportMode::ImportOnly, |_| {});
+    run_import(&source.path, ImportMode::ImportOnly, false, |_| {});
 
     let db_path = source.path.join(".hual").join("hual.db");
     assert!(db_path.exists());
@@ -112,4 +112,27 @@ fn run_import_only_indexes_in_place_without_copying() {
         })
         .unwrap();
     assert_eq!(src_path, dest_path);
+}
+
+#[test]
+fn run_import_raw_only_skips_jpeg_files() {
+    let source = TempDir::new("pipeline_raw_only_source");
+    let dest = TempDir::new("pipeline_raw_only_dest");
+
+    source.write_file("photo.arw", &synthetic_tiff());
+    source.write_file("photo.jpg", &tiny_jpeg(4, 4, [50, 60, 70]));
+
+    run_import(&source.path, ImportMode::CopyAndImport(dest.path.clone()), true, |_| {});
+
+    let db_path = dest.path.join(".hual").join("hual.db");
+    let conn = rusqlite::Connection::open(&db_path).unwrap();
+    let count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM photos", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(count, 1);
+
+    let src_path: String = conn
+        .query_row("SELECT src_path FROM photos", [], |row| row.get(0))
+        .unwrap();
+    assert!(src_path.ends_with("photo.arw"));
 }

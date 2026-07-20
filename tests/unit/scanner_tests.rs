@@ -12,7 +12,7 @@ fn finds_files_in_nested_subdirectories() {
     dir.write_file("sub/deeper/c.txt", b"!");
 
     let (tx, rx) = unbounded();
-    run(&dir.path, tx);
+    run(&dir.path, tx, false);
 
     let mut found: Vec<_> = rx.iter().collect();
     found.sort_by(|a, b| a.src_path.cmp(&b.src_path));
@@ -30,7 +30,7 @@ fn includes_files_regardless_of_extension() {
     dir.write_file("photo.xyz", b"data2");
 
     let (tx, rx) = unbounded();
-    run(&dir.path, tx);
+    run(&dir.path, tx, false);
 
     assert_eq!(rx.iter().count(), 2);
 }
@@ -40,7 +40,7 @@ fn nonexistent_source_dir_yields_no_files_without_panicking() {
     let missing = std::env::temp_dir().join("hual_test_scanner_does_not_exist_12345");
 
     let (tx, rx) = unbounded();
-    run(&missing, tx);
+    run(&missing, tx, false);
 
     assert_eq!(rx.iter().count(), 0);
 }
@@ -62,9 +62,51 @@ fn skips_symlinks() {
     }
 
     let (tx, rx) = unbounded();
-    run(&dir.path, tx);
+    run(&dir.path, tx, false);
 
     let found: Vec<_> = rx.iter().collect();
     assert_eq!(found.len(), 1);
     assert!(found[0].src_path.ends_with("real.txt"));
+}
+
+#[test]
+fn skips_hual_directory_during_walk() {
+    let dir = TempDir::new("scanner_hual_skip");
+    dir.write_file("photo.arw", b"real photo bytes");
+    dir.write_file(".hual/hual.db", b"fake sqlite bytes");
+    dir.write_file(".hual/thumbcache/abc123.webp", b"fake webp bytes");
+
+    let (tx, rx) = unbounded();
+    run(&dir.path, tx, false);
+
+    let found: Vec<_> = rx.iter().collect();
+    assert_eq!(found.len(), 1);
+    assert!(found[0].src_path.ends_with("photo.arw"));
+}
+
+#[test]
+fn raw_only_excludes_jpeg_extensions() {
+    let dir = TempDir::new("scanner_raw_only");
+    dir.write_file("photo.arw", b"raw bytes");
+    dir.write_file("photo.jpg", b"jpeg bytes");
+    dir.write_file("photo.JPEG", b"jpeg bytes upper");
+
+    let (tx, rx) = unbounded();
+    run(&dir.path, tx, true);
+
+    let found: Vec<_> = rx.iter().collect();
+    assert_eq!(found.len(), 1);
+    assert!(found[0].src_path.ends_with("photo.arw"));
+}
+
+#[test]
+fn raw_only_false_includes_jpegs() {
+    let dir = TempDir::new("scanner_mixed");
+    dir.write_file("photo.arw", b"raw bytes");
+    dir.write_file("photo.jpg", b"jpeg bytes");
+
+    let (tx, rx) = unbounded();
+    run(&dir.path, tx, false);
+
+    assert_eq!(rx.iter().count(), 2);
 }
