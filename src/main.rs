@@ -99,6 +99,10 @@ fn import(mut args: impl Iterator<Item = OsString>) -> ExitCode {
         return ExitCode::FAILURE;
     };
 
-    pipeline::run_import(&PathBuf::from(source), &PathBuf::from(dest), |_| {});
+    pipeline::run_import(
+        &PathBuf::from(source),
+        pipeline::ImportMode::CopyAndImport(PathBuf::from(dest)),
+        |_| {},
+    );
     ExitCode::SUCCESS
 }

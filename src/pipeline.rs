@@ -33,20 +33,34 @@ pub struct MetadataRecord {
     pub exif: Option<ExifData>,
 }
 
+pub enum ImportMode {
+    CopyAndImport(PathBuf),
+    ImportOnly,
+}
+
 const CHANNEL_CAPACITY: usize = 32;
 
-pub fn run_import(source_dir: &Path, dest_dir: &Path, on_progress: impl Fn(usize) + Sync) {
-    // ensure dest_dir before making hidden folder
-    if let Err(e) = std::fs::create_dir_all(dest_dir) {
-        eprintln!(
-            "Error creating destination directory {}: {e}",
-            dest_dir.display()
-        );
-        return;
-    }
+pub fn run_import(source_dir: &Path, mode: ImportMode, on_progress: impl Fn(usize) + Sync) {
+    let hual_root: PathBuf = match &mode {
+        ImportMode::CopyAndImport(dest_dir) => {
+            // ensure dest_dir before making hidden folder
+            if let Err(e) = std::fs::create_dir_all(dest_dir) {
+                eprintln!(
+                    "Error creating destination directory {}: {e}",
+                    dest_dir.display()
+                );
+                return;
+            }
+            dest_dir.clone()
+        }
+        ImportMode::ImportOnly => {
+            // For import-only mode, we'll use the source directory as the hual root
+            source_dir.to_path_buf()
+        }
+    };
 
     // .hual folder
-    let hidden = dest_dir.join(".hual");
+    let hidden = hual_root.join(".hual");
     if let Err(e) = hidden_dir::ensure(&hidden) {
         eprintln!("Error creating {}: {e}", hidden.display());
         return;
@@ -67,6 +81,11 @@ pub fn run_import(source_dir: &Path, dest_dir: &Path, on_progress: impl Fn(usize
             eprintln!("Error creating thumbnail cache directory: {e}");
             return;
         }
+    };
+
+    let dest_dir_ref: Option<&Path> = match &mode {
+        ImportMode::CopyAndImport(dest_dir) => Some(dest_dir.as_path()),
+        ImportMode::ImportOnly => None,
     };
 
     let (raw_tx, raw_rx) = bounded::<RawFile>(CHANNEL_CAPACITY);
@@ -96,7 +115,7 @@ pub fn run_import(source_dir: &Path, dest_dir: &Path, on_progress: impl Fn(usize
                     write_tx,
                     db_tx,
                     source_dir,
-                    dest_dir,
+                    dest_dir_ref,
                     l2_cache_ref,
                     counter_ref,
                     on_progress,
