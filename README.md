@@ -2,19 +2,13 @@
 
 *Hari Up and Load.*
 
-A local-only RAW photo ingestion and cataloging engine, written in Rust, with a
-Tauri + React desktop UI on top.
+A local-only RAW photo ingestion and cataloguing engine, written in Rust, with a Tauri + React desktop UI on top.
 
-No AI, no cloud services, no telemetry. Every `.NEF`/`.ARW`/`.CR3` already
-carries a pre-rendered JPEG preview in its metadata — the same one your
-camera's LCD uses — so hual never decodes RAW sensor data at all. It
-memory-maps the file, walks the container format's own binary structure, and
-slices the embedded preview straight out. From there: a hand-rolled LRU
-cache, a multithreaded ingestion pipeline, a SQLite metadata index, and a
-Tauri-wrapped frontend.
+No AI, no cloud services, no telemetry. Every .NEF/.ARW/.CR3 file already carries a pre-rendered JPEG preview in its metadata, the same one your camera's LCD uses, so hual never actually decodes RAW sensor data. It memory-maps the file, walks the container format's own binary structure, and pulls the embedded preview out directly. From there it's a hand-rolled LRU cache, a multithreaded ingestion pipeline, a SQLite metadata index, and a Tauri-wrapped frontend.
 
-This is a from-scratch systems-engineering project — anything that could reasonably be hand-rolled
-instead of pulled in as a dependency, has been (the LRU cache, the TIFF/EXIF and ISO-BMFF parsers, the worker pool, the scroll virtualization).
+Performance was the main thing I cared about while building this, more than features or polish. That's why the file reads are memory-mapped instead of loaded whole, why the LRU cache is hand-rolled instead of a crate off the shelf, and why the worker pool is tuned by hand rather than left at defaults. The goal was always to make it hold up on a real photo library containing thousands of raw files, where loading each file as a whole is slow and impracticable.
+
+It's also a from-scratch systems-engineering project in general: anything that could reasonably be hand-rolled instead of pulled in as a dependency has been, including the LRU cache, the TIFF/EXIF and ISO-BMFF parsers, the worker pool, and the scroll virtualisation.
 
 ## Contents
 
@@ -28,7 +22,7 @@ instead of pulled in as a dependency, has been (the LRU cache, the TIFF/EXIF and
   - [4. Database indexing for metadata](#4-database-indexing-for-metadata)
   - [5. Tauri-wrapped frontend](#5-tauri-wrapped-frontend)
 - [Contributing](#contributing)
-- [License](#license)
+- [Licence](#licence)
 
 ## Getting started
 
@@ -230,7 +224,7 @@ injection surface despite the query shape being built at runtime.
 
 React + TypeScript, talking to the Rust backend through five typed
 `#[tauri::command]`s (`list_photos`, `get_preview`, `get_webp`,
-`import_photos`, `pick_dir`). The photo grid's scroll virtualization —
+`import_photos`, `pick_dir`). The photo grid's scroll virtualisation —
 windowing plus a `ResizeObserver`-driven column reflow — is hand-rolled
 rather than a library, matching the backend's philosophy. A docked,
 collapsible sidebar hosts import controls (Copy & Import / Import Only,
@@ -255,6 +249,6 @@ changing *which* photo is requested, not a different code path.
 - Open an issue for anything beyond a small fix before investing time in a
   large change, so design direction can be agreed on first.
 
-## License
+## Licence
 
 MIT — see [LICENSE](LICENSE).
