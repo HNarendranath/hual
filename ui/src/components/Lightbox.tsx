@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { getFullThumbnail, Photo } from '../lib/ipc'
 import { formatExposureTime, formatFocalLength } from '../lib/utils';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Props {
     photo: Photo;
     onClose: () => void;
+    onPrev?: () => void;
+    onNext?: () => void;
 }
 
-export function Lightbox({ photo, onClose }: Props) {
+export function Lightbox({ photo, onClose, onPrev, onNext }: Props) {
     const [url, setUrl] = useState<string | null>(null);
 
     useEffect(() => {
@@ -33,13 +36,17 @@ export function Lightbox({ photo, onClose }: Props) {
         const onKey = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
                 onClose();
+            } else if (e.key === 'ArrowLeft' && onPrev) {
+                onPrev();
+            } else if (e.key === 'ArrowRight' && onNext) {
+                onNext();
             };
         };
         window.addEventListener('keydown', onKey);
         return () => {
             window.removeEventListener('keydown', onKey);
         };
-    }, [onClose]);
+    }, [onClose, onPrev, onNext]);
 
     return (
         <div className="lightbox-overlay" onClick={onClose}>
@@ -47,6 +54,24 @@ export function Lightbox({ photo, onClose }: Props) {
                 <img src={url} alt={photo.srcPath} className="lightbox-image" onClick={(e) => e.stopPropagation()} />
             ) : (
                 <p>Loading...</p>
+            )}
+            {onPrev && (
+                <button
+                    className="lightbox-nav lightbox-nav-prev"
+                    onClick={(e) => { e.stopPropagation(); onPrev(); }}
+                    aria-label="Previous photo"
+                >
+                    <ChevronLeft size={28} />
+                </button>
+            )}
+            {onNext && (
+                <button
+                    className="lightbox-nav lightbox-nav-next"
+                    onClick={(e) => { e.stopPropagation(); onNext(); }}
+                    aria-label="Next photo"
+                >
+                    <ChevronRight size={28} />
+                </button>
             )}
             <div className="lightbox-meta" onClick={(e) => e.stopPropagation()}>
                 {photo.focalLength !== null && <span>{formatFocalLength(photo.focalLength)}</span>}

@@ -23,7 +23,8 @@ export function PhotoGrid({ photos, loading, error, thumbcacheDir, sidebarOpen, 
         tileSize: TILE_SIZE,
         gap: GAP,
     });
-    const [selected, setSelected] = useState<Photo | null>(null);
+    const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+    const selected = selectedIndex !== null ? photos[selectedIndex] : null;
 
     const visiblePhotos = photos.slice(startIndex, endIndex);
     const showEmptyState = !loading && !error && photos.length === 0;
@@ -61,19 +62,26 @@ export function PhotoGrid({ photos, loading, error, thumbcacheDir, sidebarOpen, 
                                 left: 0,
                             }}
                         >
-                            {visiblePhotos.map((photo) => (
+                            {visiblePhotos.map((photo, i) => (
                                 <PhotoThumbnail
                                     key={photo.srcPath}
                                     photo={photo}
                                     thumbcacheDir={thumbcacheDir ?? ''}
-                                    onClick={() => setSelected(photo)}
+                                    onClick={() => setSelectedIndex(startIndex + i)}
                                 />
                             ))}
                         </div>
                     </div>
                 )}
             </div>
-            {selected && <Lightbox photo={selected} onClose={() => setSelected(null)} />}
+            {selected && selectedIndex !== null && (
+                <Lightbox
+                    photo={selected}
+                    onClose={() => setSelectedIndex(null)}
+                    onPrev={selectedIndex > 0 ? () => setSelectedIndex(selectedIndex - 1) : undefined}
+                    onNext={selectedIndex < photos.length - 1 ? () => setSelectedIndex(selectedIndex + 1) : undefined}
+                />
+            )}
         </div>
     );
 }

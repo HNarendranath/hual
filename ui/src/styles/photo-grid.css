@@ -77,6 +77,35 @@
     object-fit: contain;
 }
 
+.lightbox-nav {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    cursor: pointer;
+    z-index: 11;
+}
+
+.lightbox-nav:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.lightbox-nav-prev {
+    left: 24px;
+}
+
+.lightbox-nav-next {
+    right: 24px;
+}
+
 .lightbox-meta {
     position: absolute;
     bottom: 24px;
