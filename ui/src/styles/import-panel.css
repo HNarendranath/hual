@@ -28,6 +28,8 @@
 }
 
 .import-actions button {
+    width: 100%;
+    box-sizing: border-box;
     padding: 8px 14px;
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -36,6 +38,9 @@
     font: inherit;
     cursor: pointer;
     text-align: left;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .import-actions button:hover:not(:disabled) {

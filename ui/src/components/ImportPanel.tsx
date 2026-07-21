@@ -73,11 +73,11 @@ export function ImportPanel({ onImportComplete }: Props) {
             </label>
 
             <div className="import-actions">
-                <button onClick={handlePickSource} disabled={importing}>
+                <button onClick={handlePickSource} disabled={importing} title={source ?? undefined}>
                     {source ?? 'Choose source folder'}
                 </button>
                 {mode === 'copyAndImport' && (
-                    <button onClick={handlePickDest} disabled={importing}>
+                    <button onClick={handlePickDest} disabled={importing} title={dest ?? undefined}>
                         {dest ?? 'Choose destination folder'}
                     </button>
                 )}
