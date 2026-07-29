@@ -10,6 +10,10 @@ Performance was the main thing I cared about while building this, more than feat
 
 It's also a from-scratch systems-engineering project in general: anything that could reasonably be hand-rolled instead of pulled in as a dependency has been, including the LRU cache, the TIFF/EXIF and ISO-BMFF parsers, the worker pool, and the scroll virtualisation.
 
+## Documentation
+
+📄 **[Read the full Project Writeup (PDF)](./docs/writeup.pdf)**
+
 ## Contents
 
 - [Getting started](#getting-started)
@@ -53,7 +57,7 @@ cargo tauri build
 ## Tech stack
 
 | Layer | Choice |
-|---|---|
+| --- | --- |
 | Core engine | Rust |
 | Database | [`rusqlite`](https://docs.rs/rusqlite) (bundled SQLite) |
 | Desktop shell | [Tauri v2](https://tauri.app/) |
