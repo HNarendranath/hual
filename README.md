@@ -12,7 +12,7 @@ It's also a from-scratch systems-engineering project in general: anything that c
 
 ## Documentation
 
-📄 **[Read the full Project Writeup (PDF)](./docs/writeup.pdf)**
+📄 **[Read the full Project Writeup (PDF)](https://hnarendranath.github.io/hual/docs/writeup.pdf)**
 
 ## Contents
 
